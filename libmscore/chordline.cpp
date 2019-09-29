@@ -31,9 +31,8 @@ const char* scorelineNames[] = {
 //---------------------------------------------------------
 
 ChordLine::ChordLine(Score* s)
-   : Element(s)
+   : Element(s, ElementFlag::MOVABLE)
       {
-      setFlags(ElementFlag::MOVABLE | ElementFlag::SELECTABLE);
       modified = false;
       _chordLineType = ChordLineType::NOTYPE;
       _straight = false;
@@ -116,18 +115,17 @@ void ChordLine::layout()
             QPointF p(note->pos());
             // chordlines to the right of the note
             if (_chordLineType == ChordLineType::FALL || _chordLineType == ChordLineType::DOIT)
-                  setPos(p.x() + note->headWidth() + _spatium * .2, p.y());
+                  setPos(p.x() + note->bboxRightPos() + _spatium * .2, p.y());
             // chordlines to the left of the note
             if (_chordLineType == ChordLineType::PLOP)
-                  setPos(p.x() + note->headWidth() * .25, p.y() - note->headHeight() * .75);
+                  setPos(p.x() + note->bboxRightPos() * .25, p.y() - note->headHeight() * .75);
             if (_chordLineType == ChordLineType::SCOOP) {
-                  qreal x = p.x() + (chord()->up() ? note->headWidth() * .25 : _spatium * -.2);
+                  qreal x = p.x() + (chord()->up() ? note->bboxRightPos() * .25 : _spatium * -.2);
                   setPos(x, p.y() + note->headHeight() * .75);
                   }
             }
       else
             setPos(0.0, 0.0);
-      adjustReadPos();
       QRectF r(path.boundingRect());
       int x1, y1, width, height = 0;
 
@@ -153,8 +151,8 @@ void ChordLine::read(XmlReader& e)
                   QPointF p1;
                   int state = 0;
                   while (e.readNextStartElement()) {
-                        const QStringRef& tag(e.name());
-                        if (tag == "Element") {
+                        const QStringRef& nextTag(e.name());
+                        if (nextTag == "Element") {
                               int type = e.intAttribute("type");
                               qreal x  = e.doubleAttribute("x");
                               qreal y  = e.doubleAttribute("y");
@@ -209,9 +207,9 @@ void ChordLine::read(XmlReader& e)
 
 void ChordLine::write(XmlWriter& xml) const
       {
-      xml.stag(name());
-      xml.tag("subtype", int(_chordLineType));
-      xml.tag("straight", _straight, false);
+      xml.stag(this);
+      writeProperty(xml, Pid::CHORD_LINE_TYPE);
+      writeProperty(xml, Pid::CHORD_LINE_STRAIGHT);
       xml.tag("lengthX", _lengthX, 0.0);
       xml.tag("lengthY", _lengthY, 0.0);
       Element::writeProperties(xml);
@@ -365,7 +363,7 @@ void ChordLine::updateGrips(EditData& ed) const
             else if (_chordLineType == ChordLineType::PLOP)
                    ed.grip[0].translate(QPointF(-offset, -offset));
 
-            // translate on the length and height - stops the grips from goint past boundries of slide
+            // translate on the length and height - stops the grips from going past boundaries of slide
             ed.grip[0].translate(cp + QPointF(path.elementAt(1).x * sp, path.elementAt(1).y * sp));
             }
       else  {
@@ -380,6 +378,7 @@ void ChordLine::updateGrips(EditData& ed) const
 
 void ChordLine::startEdit(EditData& ed)
       {
+      Element::startEdit(ed);
       if (_straight) {
             ed.curGrip = Grip(0);
             ed.grips   = 1;
@@ -402,5 +401,68 @@ QString ChordLine::accessibleInfo() const
       return rez;
       }
 
+//---------------------------------------------------------
+//   getProperty
+//---------------------------------------------------------
+
+QVariant ChordLine::getProperty(Pid propertyId) const
+      {
+      switch(propertyId) {
+            case Pid::CHORD_LINE_TYPE:
+                  return int(_chordLineType);
+            case Pid::CHORD_LINE_STRAIGHT:
+                  return _straight;
+            default:
+                  break;
+            }
+      return Element::getProperty(propertyId);
+      }
+
+//---------------------------------------------------------
+//   setProperty
+//---------------------------------------------------------
+
+bool ChordLine::setProperty(Pid propertyId, const QVariant& val)
+      {
+      switch(propertyId) {
+            case Pid::CHORD_LINE_TYPE:
+                  setChordLineType(ChordLineType(val.toInt()));
+                  break;
+            case Pid::CHORD_LINE_STRAIGHT:
+                  setStraight(val.toBool());
+                  break;
+            default:
+                  break;
+            }
+      return Element::setProperty(propertyId, val);
+      }
+
+//---------------------------------------------------------
+//   propertyDefault
+//---------------------------------------------------------
+
+QVariant ChordLine::propertyDefault(Pid pid) const
+      {
+      switch (pid) {
+            case Pid::CHORD_LINE_STRAIGHT:
+                  return false;
+            default:
+                  break;
+            }
+      return Element::propertyDefault(pid);
+      }
+
+//---------------------------------------------------------
+//   propertyId
+//---------------------------------------------------------
+
+Pid ChordLine::propertyId(const QStringRef& name) const
+      {
+      if (name == "subtype")
+            return Pid::CHORD_LINE_TYPE;
+      else if (name == "straight")
+            return Pid::CHORD_LINE_STRAIGHT;
+      return Element::propertyId(name);
+      }
 }
 

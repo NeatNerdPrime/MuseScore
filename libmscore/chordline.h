@@ -31,9 +31,7 @@ enum class ChordLineType : char {
 ///    implements fall, doit, plop, bend
 //---------------------------------------------------------
 
-class ChordLine : public Element {
-      Q_GADGET
-
+class ChordLine final : public Element {
       ChordLineType _chordLineType;
       bool _straight;
       QPainterPath path;
@@ -67,6 +65,11 @@ class ChordLine : public Element {
       virtual void updateGrips(EditData&) const override;
 
       virtual QString accessibleInfo() const override;
+
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid) const override;
+      virtual Pid propertyId(const QStringRef& xmlName) const override;
       };
 
 extern const char* scorelineNames[];

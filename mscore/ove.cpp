@@ -1,7 +1,6 @@
 //=============================================================================
 //  MusE Score
 //  Linux Music Score Editor
-//  $Id: importove.cpp 4287 2011-05-17 14:50:09Z vanferry $
 //
 //  Copyright (C) 2002-2009 Werner Schweer and others
 //
@@ -593,7 +592,6 @@ int OveSong::getPartBarCount() const {
       }
 
 QPair<int, int> OveSong::trackToPartStaff(int track) const {
-      QPair<int, int> partStaff;
       int i;
       int staffCount = 0;
 
@@ -3286,7 +3284,7 @@ MeasureData::~MeasureData(){
             }
       musicDatas_.clear();
 
-      // noteContainers_ also in musicDatas_, no need to destory
+      // noteContainers_ also in musicDatas_, no need to destroy
       noteContainers_.clear();
 
       // only delete at element start
@@ -7297,7 +7295,7 @@ void LyricChunkParse::processLyricInfo(const LyricInfo& info) {
                         }
 
                   for( j=0; j<lyrics.size(); ++j ) {
-                        Lyric* lyric = dynamic_cast<Lyric*>(lyrics[j]);
+                        Lyric* lyric = static_cast<Lyric*>(lyrics[j]);
 
                         if( containers[i]->start()->getOffset() == lyric->start()->getOffset() &&
                             (int)containers[i]->getVoice() == info.voice_ &&
@@ -7343,9 +7341,9 @@ QByteArray getByteArray(const Block& block) {
       }
 
 bool TitleChunkParse::parse() {
-      Block* dataBlock = chunk_->getDataBlock();
+      Block* dataBlockP = chunk_->getDataBlock();
       unsigned int blockSize = chunk_->getSizeBlock()->toSize();
-      StreamHandle handle(dataBlock->data(), blockSize);
+      StreamHandle handle(dataBlockP->data(), blockSize);
       Block typeBlock;
       unsigned int titleType;
 
@@ -7515,7 +7513,7 @@ void OveOrganizer::organizeAttributes() {
                                     const QList<MusicData*>& clefs = measureData->getMusicDatas(MusicDataType::Clef);
 
                                     for( k=0; k<clefs.size(); ++k ) {
-                                          Clef* clef = dynamic_cast<Clef*>(clefs[k]);
+                                          Clef* clef = static_cast<Clef*>(clefs[k]);
                                           lastClefType = clef->getClefType();
                                           }
                                     }
@@ -7681,12 +7679,12 @@ void OveOrganizer::organizeCrossMeasureElements(int part, int track, Measure* me
                         break;
                         }
                   case MusicDataType::OctaveShift : {
-                        OctaveShift* octave = dynamic_cast<OctaveShift*>(pair);
+                        OctaveShift* octave = static_cast<OctaveShift*>(pair);
                         organizeOctaveShift(octave, measure, measureData);
                         break;
                         }
                   case MusicDataType::Wedge : {
-                        Wedge* wedge = dynamic_cast<Wedge*>(pair);
+                        Wedge* wedge = static_cast<Wedge*>(pair);
                         organizeWedge(wedge, part, track, measure, measureData);
                         break;
                         }
@@ -7713,7 +7711,7 @@ void OveOrganizer::organizePairElement(
             }
 
       if( data->getMusicDataType() == MusicDataType::Tuplet ){
-            Tuplet* tuplet = dynamic_cast<Tuplet*>(data);
+            Tuplet* tuplet = static_cast<Tuplet*>(data);
             const QList<NoteContainer*> containers = measureData->getNoteContainers();
 
             for(int i=0; i<containers.size(); ++i){
@@ -7849,7 +7847,7 @@ void OveOrganizer::organizeWedge(Wedge* wedge, int part, int track, Measure* mea
                               wedge->start()->getOffset(), wedge->stop()->getOffset(),
                               middleMeasure, middleUnit);
 
-            if( middleMeasure != 0 ) {
+            if( middleUnit != 0 ) {
                   WedgeEndPoint* midStopPoint = new WedgeEndPoint();
                   measureData->addMusicData(midStopPoint);
 

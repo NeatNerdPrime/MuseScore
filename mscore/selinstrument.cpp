@@ -1,7 +1,6 @@
 //=============================================================================
 //  MuseScore
 //  Linux Music Score Editor
-//  $Id: editstaff.cpp 3629 2010-10-26 10:40:47Z wschweer $
 //
 //  Copyright (C) 2010 Werner Schweer and others
 //
@@ -42,7 +41,17 @@ SelectInstrument::SelectInstrument(const Instrument* instrument, QWidget* parent
       currentInstrument->setText(instrument->trackName());
       buildTemplateList();
       buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
-      connect(instrumentList, SIGNAL(clicked(const QModelIndex &)), SLOT(expandOrCollapse(const QModelIndex &)));
+      instrumentSearch->setFilterableView(instrumentList);
+
+      // get last saved, user-selected instrument genre and set filter to it
+      QSettings settings;
+      settings.beginGroup("selectInstrument");
+      if (!settings.value("selectedGenre").isNull()){
+            QString selectedGenre = settings.value("selectedGenre").value<QString>();
+            instrumentGenreFilter->setCurrentText(selectedGenre);
+            }
+      settings.endGroup();
+
       MuseScore::restoreGeometry(this);
       }
 
@@ -53,8 +62,7 @@ SelectInstrument::SelectInstrument(const Instrument* instrument, QWidget* parent
 void SelectInstrument::buildTemplateList()
       {
       // clear search if instrument list is updated
-      search->clear();
-      filterInstruments(instrumentList, search->text());
+      instrumentSearch->clear();
 
       populateInstrumentList(instrumentList);
       populateGenreCombo(instrumentGenreFilter);
@@ -111,30 +119,32 @@ const InstrumentTemplate* SelectInstrument::instrTemplate() const
 //   on_search_textChanged
 //---------------------------------------------------------
 
-void SelectInstrument::on_search_textChanged(const QString &searchPhrase)
+void SelectInstrument::on_search_textChanged(const QString&)
       {
-      filterInstruments(instrumentList, searchPhrase);
-      instrumentGenreFilter->blockSignals(true);
-      instrumentGenreFilter->setCurrentIndex(0);
-      instrumentGenreFilter->blockSignals(false);
+      // searching is done in Ms::SearchBox so here we just reset the
+      // genre dropdown to ensure that the search includes all genres
+      const int idxAllGenres = 0;
+      if (instrumentGenreFilter->currentIndex() != idxAllGenres) {
+            instrumentGenreFilter->blockSignals(true);
+            instrumentGenreFilter->setCurrentIndex(idxAllGenres);
+            instrumentGenreFilter->blockSignals(false);
+            }
       }
 
-//---------------------------------------------------------
-//   on_clearSearch_clicked
-//---------------------------------------------------------
 
-void SelectInstrument::on_clearSearch_clicked()
-      {
-      search->clear();
-      filterInstruments (instrumentList);
-      }
 //---------------------------------------------------------
 //   on_instrumentGenreFilter_currentTextChanged
 //---------------------------------------------------------
 
 void SelectInstrument::on_instrumentGenreFilter_currentIndexChanged(int index)
       {
+      QSettings settings;
+      settings.beginGroup("selectInstrument");  // hard coded, since this is also used in instrwidget
+      settings.setValue("selectedGenre", instrumentGenreFilter->currentText());
+      settings.endGroup();
+
       QString id = instrumentGenreFilter->itemData(index).toString();
+
       // Redisplay tree, only showing items from the selected genre
       filterInstrumentsByGenre(instrumentList, id);
       }
@@ -144,9 +154,9 @@ void SelectInstrument::on_instrumentGenreFilter_currentIndexChanged(int index)
 //   filterInstrumentsByGenre
 //---------------------------------------------------------
 
-void SelectInstrument::filterInstrumentsByGenre(QTreeWidget *instrumentList, QString genre)
+void SelectInstrument::filterInstrumentsByGenre(QTreeWidget *instrList, QString genre)
       {
-      QTreeWidgetItemIterator iList(instrumentList);
+      QTreeWidgetItemIterator iList(instrList);
       while (*iList) {
             (*iList)->setHidden(true);
             InstrumentTemplateListItem* itli = static_cast<InstrumentTemplateListItem*>(*iList);

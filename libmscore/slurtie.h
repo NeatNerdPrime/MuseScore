@@ -41,8 +41,33 @@ struct UP {
       QPointF p;            // layout position relative to pos()
       QPointF off;          // user offset in point units
 
-      bool operator!=(const UP& up) const {
-            return p != up.p || off != up.off;
+      QPointF pos() const { return p + off; }
+      bool operator!=(const UP& up) const { return p != up.p || off != up.off; }
+      };
+
+//---------------------------------------------------------
+//   CubicBezier
+//    Helper class to optimize cubic Bezier curve points
+//    calculation.
+//---------------------------------------------------------
+
+class CubicBezier {
+      QPointF p1;
+      QPointF p2;
+      QPointF p3;
+      QPointF p4;
+
+   public:
+      CubicBezier(QPointF _p1, QPointF _p2, QPointF _p3, QPointF _p4)
+         : p1(_p1), p2(_p2), p3(_p3), p4(_p4) {}
+
+      QPointF pointAtPercent(qreal t) const
+            {
+            Q_ASSERT(t >= 0.0 && t <= 1.0);
+            const qreal r = 1.0 - t;
+            const QPointF B123 = r * (r*p1 + t*p2) + t * (r*p2 + t*p3);
+            const QPointF B234 = r * (r*p2 + t*p3) + t * (r*p3 + t*p4);
+            return r*B123 + t*B234;
             }
       };
 
@@ -53,13 +78,15 @@ class SlurTie;
 //---------------------------------------------------------
 
 class SlurTieSegment : public SpannerSegment {
-      Q_GADGET
-
    protected:
       struct UP _ups[int(Grip::GRIPS)];
+
       QPainterPath path;
       QPainterPath shapePath;
       Shape _shape;
+
+      virtual void changeAnchor(EditData&, Element*) = 0;
+      virtual QPointF gripAnchor(Grip grip) const override;
 
    public:
       SlurTieSegment(Score*);
@@ -67,10 +94,17 @@ class SlurTieSegment : public SpannerSegment {
       virtual void spatiumChanged(qreal, qreal) override;
       SlurTie* slurTie() const { return (SlurTie*)spanner(); }
 
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID id) const override;
+      virtual void startEdit(EditData&) override;
+      virtual void endEdit(EditData&) override;
+      virtual void startEditDrag(EditData& ed) override;
+      virtual void endEditDrag(EditData& ed) override;
+      virtual void editDrag(EditData&) override;
+
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid id) const override;
       virtual void reset() override;
+      virtual void undoChangeProperty(Pid id, const QVariant&, PropertyFlags ps) override;
       virtual void move(const QPointF& s) override;
       virtual bool isEditable() const override { return true; }
 
@@ -81,6 +115,8 @@ class SlurTieSegment : public SpannerSegment {
 
       void writeSlur(XmlWriter& xml, int no) const;
       void read(XmlReader&);
+      virtual void drawEditMode(QPainter*, EditData&) override;
+      virtual void computeBezier(QPointF so = QPointF()) = 0;
       };
 
 //-------------------------------------------------------------------
@@ -90,19 +126,11 @@ class SlurTieSegment : public SpannerSegment {
 //-------------------------------------------------------------------
 
 class SlurTie : public Spanner {
-      Q_GADGET
-      Q_PROPERTY(int lineType                         READ lineType       WRITE undoSetLineType)
-
       int _lineType;    // 0 = solid, 1 = dotted, 2 = dashed, 3 = wide dashed
-
-      static Element* editStartElement;
-      static Element* editEndElement;
-      static QList<SlurOffsets> editUps;
 
    protected:
       bool _up;               // actual direction
 
-      QQueue<SpannerSegment*> delSegments;   // "deleted" segments
       Direction _slurDirection;
       qreal firstNoteRestSegmentX(System* system);
       void fixupSegments(unsigned nsegs);
@@ -124,6 +152,8 @@ class SlurTie : public Spanner {
       virtual void layout2(const QPointF, int, struct UP&)  {}
       virtual bool contains(const QPointF&) const { return false; }  // not selectable
 
+      virtual void read(XmlReader&) override;
+
       void writeProperties(XmlWriter& xml) const;
       bool readProperties(XmlReader&);
 
@@ -134,12 +164,10 @@ class SlurTie : public Spanner {
       virtual void slurPos(SlurPos*) = 0;
       virtual SlurTieSegment* newSlurTieSegment() = 0;
 
-      virtual void startEdit(EditData&) override;
-      virtual void endEdit(EditData&) override;
 
-      virtual QVariant getProperty(P_ID propertyId) const;
-      virtual bool setProperty(P_ID propertyId, const QVariant&);
-      virtual QVariant propertyDefault(P_ID id) const;
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid id) const override;
       };
 
 }

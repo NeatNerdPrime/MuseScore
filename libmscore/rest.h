@@ -14,6 +14,7 @@
 #define __REST_H__
 
 #include "chordrest.h"
+#include "notedot.h"
 
 namespace Ms {
 
@@ -23,31 +24,27 @@ enum class SymId;
 //---------------------------------------------------------
 //    @@ Rest
 ///     This class implements a rest.
-//    @P isFullMeasure  bool  (read only)
 //---------------------------------------------------------
 
 class Rest : public ChordRest {
-      Q_GADGET
-      Q_PROPERTY(bool  isFullMeasure  READ isFullMeasureRest)
-
       // values calculated by layout:
       SymId _sym;
       int dotline    { -1  };       // depends on rest symbol
-      qreal _mmWidth { 0.0 };       // width of multi measure rest
-      bool _gap;                    ///< invisible and not selectable for user
+      qreal _mmWidth;               // width of multi measure rest
+      bool _gap      { false };     // invisible and not selectable for user
+      std::vector<NoteDot*> _dots;
 
       virtual QRectF drag(EditData&) override;
       virtual qreal upPos()   const override;
       virtual qreal downPos() const override;
-      virtual qreal centerX() const override;
-      virtual void setUserOff(const QPointF& o) override;
+      virtual void setOffset(const QPointF& o) override;
 
 
    public:
       Rest(Score* s = 0);
       Rest(Score*, const TDuration&);
       Rest(const Rest&, bool link = false);
-      ~Rest() {}
+      ~Rest() { qDeleteAll(_dots); }
 
       virtual ElementType type() const override { return ElementType::REST; }
       Rest &operator=(const Rest&) = delete;
@@ -58,6 +55,7 @@ class Rest : public ChordRest {
       virtual qreal mag() const override;
       virtual void draw(QPainter*) const override;
       virtual void scanElements(void* data, void (*func)(void*, Element*), bool all=true) override;
+      void setTrack(int val);
 
       virtual bool acceptDrop(EditData&) const override;
       virtual Element* drop(EditData&) override;
@@ -74,10 +72,13 @@ class Rest : public ChordRest {
       virtual void read(XmlReader&) override;
       virtual void write(XmlWriter& xml) const override;
 
-      void setMMWidth(qreal val);
+      void layoutMMRest(qreal val);
       qreal mmWidth() const        { return _mmWidth; }
       SymId getSymbol(TDuration::DurationType type, int line, int lines,  int* yoffset);
 
+      void checkDots();
+      void layoutDots();
+      NoteDot* dot(int n);
       int getDotline() const   { return dotline; }
       static int getDotline(TDuration::DurationType durationType);
       SymId sym() const        { return _sym;    }
@@ -91,10 +92,14 @@ class Rest : public ChordRest {
       virtual qreal stemPosX() const;
       virtual QPointF stemPosBeam() const;
 
-      virtual bool setProperty(P_ID propertyId, const QVariant& v) override;
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual QVariant propertyDefault(P_ID) const override;
+      virtual void localSpatiumChanged(qreal oldValue, qreal newValue) override;
+      virtual bool setProperty(Pid propertyId, const QVariant& v) override;
+      void undoChangeDotsVisible(bool v);
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual QVariant propertyDefault(Pid) const override;
 
+      virtual Element* nextElement() override;
+      virtual Element* prevElement() override;
       virtual QString accessibleInfo() const override;
       virtual QString screenReaderInfo() const override;
       Shape shape() const override;

@@ -17,10 +17,9 @@
 #include "style.h"
 
 namespace Ms {
-//      Q_NAMESPACE
 
-#define MSC_VERSION     "3.00"
-static constexpr int MSCVERSION = 300;
+#define MSC_VERSION     "3.01"
+static constexpr int MSCVERSION = 301;
 
 // History:
 //    1.3   added staff->_barLineSpan
@@ -67,7 +66,7 @@ static constexpr int MSCVERSION = 300;
 class MStyle;
 class Sequencer;
 
-enum class HairpinType : char;
+enum class HairpinType : signed char;
 
 #ifndef VOICES
 #define VOICES 4
@@ -99,80 +98,6 @@ static const int  VISUAL_STRING_NONE      = -100;     // no ordinal for the visu
                                                       // varies according to visual order and presence of bass strings)
 static const int  STRING_NONE             = -1;       // no ordinal for a physical string (0 = topmost in instrument)
 static const int  FRET_NONE               = -1;       // no ordinal for a fret
-
-//---------------------------------------------------------
-//   Enumeration wrapper macro allowing exposure of
-//   enum class to QML without manual code reproduction
-//
-//   In addition to using this Macro, you need to do one/all of the following:
-//   - In mscore.cpp - QQmlEngine* MScore::qml()
-//       qmlRegisterUncreatableType<MSQE_name>("MuseScore", 1, 0, "name", tr("You can't create an enumeration"))
-//     Allows usage of name.VALUE from within a plugin as value
-//   - At the bottom of the file where you use this Macro
-//       Q_DECLARE_METATYPE(Ms::MSQE_name::E);
-//     Allows declaring Q_PROPERTY of the type Ms::MSQE_name::E
-//      Only useful if the next point is also done
-//   - In mscore.cpp - void MScore::init()
-//       qRegisterMetaType<MSQE_name::E>("name");
-//     Allows using Ms::MSQE_name::E as return type for the READ function
-//      and parameter type for the WRITE function on a Q_PROPERTY of that type
-//      on the condition that you also declare Q_ENUMS(Ms::MSQE_name::E)
-//      for that same Q_OBJECT
-//
-//   Q_INVOKABLES can't use the QML-wrapped enum type, nor the enum class type as
-//    parameters. Those should be from the correct storageType and static_casts should
-//    be applied when necessary.
-//---------------------------------------------------------
-
-#if 0
-#define MS_QML_ENUM(name, storageType, ...)\
-      enum class name : storageType {\
-            __VA_ARGS__\
-      };\
-      class MSQE_##name {\
-            Q_GADGET\
-            Q_ENUMS(E)\
-      public:\
-            enum class E : storageType {\
-                  __VA_ARGS__\
-            };\
-      };
-#endif
-
-//---------------------------------------------------------
-//   Direction
-//---------------------------------------------------------
-
-class Direction  {
-      Q_GADGET
-      Q_ENUMS(E)
-      int val;
-
-   public:
-      enum E { AUTO, UP, DOWN };
-
-      Direction()                                {}
-      constexpr Direction(const int v) : val(v)  {}
-      Direction(const Direction& v) : val(v.val) {}
-      Direction(const QString&);
-
-      // automatic conversions
-      operator QVariant() const                { return QVariant::fromValue(*this); }
-//      explicit constexpr operator int() const  { return val; }
-      constexpr operator int() const  { return val; }
-
-      bool operator==(const Direction d) const { return val == d.val; }
-      bool operator!=(const Direction d) const { return val != d.val; }
-      bool operator==(const E d) const         { return val == d; }
-      bool operator!=(const E d) const         { return val != d; }
-
-      const char* toString() const;
-      static void fillComboBox(QComboBox*);
-      };
-
-constexpr Direction Direction_AUTO(0);
-constexpr Direction Direction_UP(1);
-constexpr Direction Direction_DOWN(2);
 
 //---------------------------------------------------------
 //   BracketType
@@ -214,31 +139,6 @@ enum class TransposeMode : char {
 enum class SelectType : char {
       SINGLE, RANGE, ADD
       };
-
-//---------------------------------------------------------
-//   NoteType
-//---------------------------------------------------------
-
-enum class NoteType : unsigned char {
-      NORMAL        = 0,
-      ACCIACCATURA  = 0x1,
-      APPOGGIATURA  = 0x2,       // grace notes
-      GRACE4        = 0x4,
-      GRACE16       = 0x8,
-      GRACE32       = 0x10,
-      GRACE8_AFTER  = 0x20,
-      GRACE16_AFTER = 0x40,
-      GRACE32_AFTER = 0x80,
-      INVALID       = 0xFF
-      };
-// Q_ENUM_NS(NoteType);
-
-constexpr NoteType operator| (NoteType t1, NoteType t2) {
-      return static_cast<NoteType>(static_cast<int>(t1) | static_cast<int>(t2));
-      }
-constexpr bool operator& (NoteType t1, NoteType t2) {
-      return static_cast<int>(t1) & static_cast<int>(t2);
-      }
 
 //---------------------------------------------------------
 //    AccidentalVal
@@ -303,6 +203,7 @@ enum class BarLineType {
       END_REPEAT       = 8,
       BROKEN           = 0x10,
       END              = 0x20,
+      END_START_REPEAT = 0x40,
       DOTTED           = 0x80
       };
 
@@ -352,6 +253,7 @@ enum MsError {
       CANNOT_CHANGE_LOCAL_TIMESIG,
       };
 
+/// \cond PLUGIN_API \private \endcond
 struct MScoreError {
       MsError no;
       const char* group;
@@ -360,6 +262,7 @@ struct MScoreError {
 
 //---------------------------------------------------------
 //   MPaintDevice
+///   \cond PLUGIN_API \private \endcond
 //---------------------------------------------------------
 
 class MPaintDevice : public QPaintDevice {
@@ -378,9 +281,8 @@ class MPaintDevice : public QPaintDevice {
 //    MuseScore application object
 //---------------------------------------------------------
 
-class MScore : public QObject {
+class MScore {
       Q_GADGET
-
       static MStyle _baseStyle;          // buildin initial style
       static MStyle _defaultStyle;       // buildin modified by preferences
       static MStyle* _defaultStyleForParts;
@@ -389,21 +291,16 @@ class MScore : public QObject {
       static int _hRaster, _vRaster;
       static bool _verticalOrientation;
 
-#ifdef SCRIPT_INTERFACE
-      static QQmlEngine* _qml;
-#endif
-
       static MPaintDevice* _paintDevice;
 
    public:
-      enum class DirectionH : char { AUTO, LEFT, RIGHT };
-      enum class OrnamentStyle : char { DEFAULT, BAROQUE};
-      enum class GlissandoStyle : char { CHROMATIC, WHITE_KEYS, BLACK_KEYS, DIATONIC };
+      enum class DirectionH : char { /**.\{*/ AUTO, LEFT, RIGHT /**\}*/ };
+      enum class OrnamentStyle : char { /**.\{*/ DEFAULT, BAROQUE /**\}*/ };
+      Q_ENUM(DirectionH);
+      Q_ENUM(OrnamentStyle);
 
       static MsError _error;
       static std::vector<MScoreError> errorList;
-
-      Q_ENUMS(DirectionH OrnamentStyle GlissandoStyle)
 
       static void init();
 
@@ -411,6 +308,7 @@ class MScore : public QObject {
       static MStyle& defaultStyle()                { return _defaultStyle;         }
       static const MStyle* defaultStyleForParts()  { return _defaultStyleForParts; }
 
+      static bool readDefaultStyle(QString file);
       static void setDefaultStyle(const MStyle& s) { _defaultStyle = s; }
       static void defaultStyleForPartsHasChanged();
 
@@ -446,8 +344,10 @@ class MScore : public QObject {
       static bool noHorizontalStretch;
       static bool noVerticalStretch;
       static bool showSegmentShapes;
+      static bool showSkylines;
       static bool showMeasureShapes;
       static bool showBoundingRect;
+      static bool showSystemBoundingRect;
       static bool showCorruptedMeasures;
       static bool useFallbackFont;
 // #endif
@@ -473,11 +373,7 @@ class MScore : public QObject {
       static qreal horizontalPageGapEven;
       static qreal horizontalPageGapOdd;
 
-#ifdef SCRIPT_INTERFACE
-      static QQmlEngine* qml();
-#endif
       static MPaintDevice* paintDevice();
-      virtual void endCmd() { };
 
       static void setError(MsError e) { _error = e; }
       static const char* errorMessage();
@@ -505,40 +401,8 @@ inline static int limit(int val, int min, int max)
             return min;
       return val;
       }
-
-//---------------------------------------------------------
-//   qml access to containers
-//
-//   QmlListAccess provides a convenience interface for
-//   QQmlListProperty providing read-only access to plugins
-//   for std::vector, QVector and QList items
-//---------------------------------------------------------
-
-template <typename T> class QmlListAccess : public QQmlListProperty<T> {
-public:
-      QmlListAccess<T>(QObject* obj, std::vector<T*>& container)
-            : QQmlListProperty<T>(obj, &container, &stdVectorCount, &stdVectorAt) {};
-
-      QmlListAccess<T>(QObject* obj, QVector<T*>& container)
-            : QQmlListProperty<T>(obj, &container, &qVectorCount, &qVectorAt) {};
-
-      QmlListAccess<T>(QObject* obj, QList<T*>& container)
-            : QQmlListProperty<T>(obj, &container, &qListCount, &qListAt) {};
-
-      static int stdVectorCount(QQmlListProperty<T>* l)     { return static_cast<std::vector<T*>*>(l->data)->size(); }
-      static T* stdVectorAt(QQmlListProperty<T>* l, int i)  { return static_cast<std::vector<T*>*>(l->data)->at(i); }
-      static int qVectorCount(QQmlListProperty<T>* l)       { return static_cast<QVector<T*>*>(l->data)->size(); }
-      static T* qVectorAt(QQmlListProperty<T>* l, int i)    { return static_cast<QVector<T*>*>(l->data)->at(i); }
-      static int qListCount(QQmlListProperty<T>* l)         { return static_cast<QList<T*>*>(l->data)->size(); }
-      static T* qListAt(QQmlListProperty<T>* l, int i)      { return static_cast<QList<T*>*>(l->data)->at(i); }
-      };
-
 }     // namespace Ms
 
-Q_DECLARE_METATYPE(Ms::Direction);
-//Q_DECLARE_METATYPE(Ms::MSQE_Direction::E);
-Q_DECLARE_METATYPE(Ms::Direction::E);
-Q_DECLARE_METATYPE(Ms::MScore::DirectionH);
 Q_DECLARE_METATYPE(Ms::BarLineType);
 
 #endif

@@ -31,10 +31,7 @@ class MeasureBase;
 //   @P pagenumber int (read only)
 //---------------------------------------------------------
 
-class Page : public Element {
-      Q_GADGET
-      Q_PROPERTY(int pagenumber READ no)
-
+class Page final : public Element {
       QList<System*> _systems;
       int _no;                      // page number
 #ifdef USE_BSP
@@ -57,7 +54,6 @@ class Page : public Element {
 
       virtual void write(XmlWriter&) const;
       virtual void read(XmlReader&);
-      virtual void styleChanged() override;
 
       void appendSystem(System* s);
 
@@ -78,7 +74,7 @@ class Page : public Element {
       QPointF pagePos() const { return QPointF(); }     ///< position in page coordinates
       QList<Element*> elements();               ///< list of visible elements
       QRectF tbbox();                           // tight bounding box, excluding white space
-      int endTick() const;
+      Fraction endTick() const;
       };
 
 

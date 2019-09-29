@@ -8,8 +8,9 @@ fi
 
 for a in undoAddLineBreaks \
    undoSlashFill \
-   undoSlashRhythm undoResequenceAlpha undoResequenceNumeric \
-   undoResequencePart undoSlashFill undoSlashRhythm \
+   undoSlashRhythm \
+   undoResequenceAlpha \
+   undoResequenceNumeric \
    undoResequencePart \
    undoResequenceMeasure; do
       echo ${a}

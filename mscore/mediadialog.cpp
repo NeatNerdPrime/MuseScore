@@ -1,7 +1,6 @@
 //=============================================================================
 //  MuseScore
 //  Linux Music Score Editor
-//  $Id:$
 //
 //  Copyright (C) 20011 Werner Schweer and others
 //
@@ -47,6 +46,9 @@ MediaDialog::MediaDialog(QWidget* /*parent*/)
       connect(removeAudio,     SIGNAL(clicked()), SLOT(removeAudioPressed()));
       connect(scanFileButton,  SIGNAL(clicked()), SLOT(scanFileButtonPressed()));
       connect(audioFileButton, SIGNAL(clicked()), SLOT(audioFileButtonPressed()));
+
+      scanFileButton->setIcon(*icons[int(Icons::fileOpen_ICON)]);
+      audioFileButton->setIcon(*icons[int(Icons::fileOpen_ICON)]);
 
       MuseScore::restoreGeometry(this);
       }
@@ -199,7 +201,7 @@ void MediaDialog::addAudioPressed()
             }
       score->setTempomap(tmn);
       syncFile.close();
-      QMessageBox::information(0, "Done", "Done");
+      QMessageBox::information(0, tr("Done"), tr("Done"));
       }
 
 //---------------------------------------------------------

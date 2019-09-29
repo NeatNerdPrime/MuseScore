@@ -1,7 +1,6 @@
 //=============================================================================
 //  MuseScore
 //  Linux Music Score Editor
-//  $Id: playpanel.h 4722 2011-09-01 12:26:07Z wschweer $
 //
 //  Copyright (C) 2002-2016 Werner Schweer and others
 //
@@ -23,6 +22,8 @@
 
 #include "ui_playpanel.h"
 #include "enableplayforwidget.h"
+
+
 namespace Ms {
 
 class Score;
@@ -31,12 +32,17 @@ class Score;
 //   PlayPanel
 //---------------------------------------------------------
 
-class PlayPanel : public QWidget, private Ui::PlayPanelBase {
+class PlayPanel : public QDockWidget, private Ui::PlayPanelBase {
       Q_OBJECT
       int cachedTickPosition;
       int cachedTimePosition;
       bool tempoSliderIsPressed;
       EnablePlayForWidget* enablePlay;
+      static constexpr double MUTE = 0.00 ;
+      static constexpr double N = 20.0 ;
+      double vol;
+      double svol;
+
 
       Score* cs;
       virtual void closeEvent(QCloseEvent*);
@@ -54,6 +60,8 @@ class PlayPanel : public QWidget, private Ui::PlayPanelBase {
       void relTempoChanged();
       void tempoSliderReleased(int);
       void tempoSliderPressed(int);
+      void volLabel();
+      void volSpinBoxEdited();
 
    protected:
       virtual void changeEvent(QEvent *event);

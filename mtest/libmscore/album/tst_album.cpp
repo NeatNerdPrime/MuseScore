@@ -82,7 +82,7 @@ void TestAlbum::album_78521()
 //    appends two scores that do not have manually-inserted initial clefs
 //          album_76101-01.mscx is two measures of treble clef
 //          album_76101-02.mscx is two measures of bass clef
-//    desired behavior is for initial clef of second score to be copied even if initial clef element is "generated" (which occurs if intial clef was not manually inserted)
+//    desired behavior is for initial clef of second score to be copied even if initial clef element is "generated" (which occurs if initial clef was not manually inserted)
 //    this test verifies that there is a non-generated clef added to final tick of final measure of first section
 //--------------------------------------------------------
 
@@ -129,7 +129,7 @@ void TestAlbum::album_105716()
 //---------------------------------------------------------
 //   album_105621
 //    crash when removing second score from AlbumManager after previously joining the album.
-//    crash occured because TBox::clone() would not allocate memory for a new Text* object.
+//    crash occurred because TBox::clone() would not allocate memory for a new Text* object.
 //--------------------------------------------------------
 
 void TestAlbum::album_105621()

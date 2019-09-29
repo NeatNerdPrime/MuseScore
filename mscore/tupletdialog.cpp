@@ -1,7 +1,6 @@
 //=============================================================================
 //  MuseScore
 //  Linux Music Score Editor
-//  $Id: tuplet.cpp -1   $
 //
 //  Copyright (C) 2002-2011 Werner Schweer and others
 //
@@ -58,17 +57,17 @@ void TupletDialog::setupTuplet(Tuplet* tuplet)
       {
       tuplet->setRatio(Fraction(actualNotes->value(), normalNotes->value()));
       if (number->isChecked())
-            tuplet->setNumberType(Tuplet::NumberType::SHOW_NUMBER);
+            tuplet->setNumberType(TupletNumberType::SHOW_NUMBER);
       else if (relation->isChecked())
-            tuplet->setNumberType(Tuplet::NumberType::SHOW_RELATION);
+            tuplet->setNumberType(TupletNumberType::SHOW_RELATION);
       else if (noNumber->isChecked())
-            tuplet->setNumberType(Tuplet::NumberType::NO_TEXT);
+            tuplet->setNumberType(TupletNumberType::NO_TEXT);
       if (autoBracket->isChecked())
-            tuplet->setBracketType(Tuplet::BracketType::AUTO_BRACKET);
+            tuplet->setBracketType(TupletBracketType::AUTO_BRACKET);
       else if (bracket->isChecked())
-            tuplet->setBracketType(Tuplet::BracketType::SHOW_BRACKET);
+            tuplet->setBracketType(TupletBracketType::SHOW_BRACKET);
       else if (noBracket->isChecked())
-            tuplet->setBracketType(Tuplet::BracketType::SHOW_NO_BRACKET);
+            tuplet->setBracketType(TupletBracketType::SHOW_NO_BRACKET);
       }
 
 //---------------------------------------------------------
@@ -94,6 +93,10 @@ Tuplet* MuseScore::tupletDialog()
             noteTooShortForTupletDialog();
             return 0;
             }
+      Measure* measure = cr->measure();
+      if (measure && measure->isMMRest())
+            return 0;
+
       TupletDialog td;
       if (!td.exec())
             return 0;
@@ -102,8 +105,8 @@ Tuplet* MuseScore::tupletDialog()
       tuplet->setTrack(cr->track());
       tuplet->setTick(cr->tick());
       td.setupTuplet(tuplet);
-      Fraction f1(cr->duration());
-      tuplet->setDuration(f1);
+      Fraction f1(cr->ticks());
+      tuplet->setTicks(f1);
       Fraction f = f1 * Fraction(1, tuplet->ratio().denominator());
       f.reduce();
 
@@ -112,9 +115,8 @@ Tuplet* MuseScore::tupletDialog()
          qPrintable(tuplet->ratio().print()),
          qPrintable(f.print()));
 
-      Fraction fbl(1, f.denominator());
-      if (TDuration::isValid(fbl))
-            tuplet->setBaseLen(fbl);
+      if (TDuration::isValid(f))
+            tuplet->setBaseLen(f);
       else
             tuplet->setBaseLen(TDuration::DurationType::V_INVALID);
 
@@ -126,7 +128,6 @@ Tuplet* MuseScore::tupletDialog()
             return 0;
             }
 
-      Measure* measure = cr->measure();
       tuplet->setParent(measure);
 
       return tuplet;

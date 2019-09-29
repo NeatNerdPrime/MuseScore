@@ -1,7 +1,6 @@
 //=============================================================================
 //  MusE Score
 //  Linux Music Score Editor
-//  $Id: select.h 3779 2010-12-19 11:39:26Z wschweer $
 //
 //  Copyright (C) 2002-2010 Werner Schweer and others
 //
@@ -45,6 +44,7 @@ class SelectNoteDialog : public QDialog, Ui::SelectNoteDialog {
       bool doSubtract() const      { return subtract->isChecked();      }
       bool doFromSelection() const { return fromSelection->isChecked(); }
       bool isInSelection() const   { return inSelection->isChecked();   }
+      void setSameStringVisible(bool v) { sameString->setVisible(v); string->setVisible(v); }
       };
 
 } // namespace Ms

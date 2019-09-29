@@ -16,6 +16,22 @@
 namespace Ms {
 
 //---------------------------------------------------------
+//   addHorizontalSpacing
+//    Currently implemented by adding rectangles of zero
+//    height to the Y position corresponding to the type.
+//    This is a simple solution but has its drawbacks too.
+//---------------------------------------------------------
+
+void Shape::addHorizontalSpacing(HorizontalSpacingType type, qreal leftEdge, qreal rightEdge)
+      {
+      constexpr qreal eps = 100 * std::numeric_limits<qreal>::epsilon();
+      const qreal y = eps * int(type);
+      if (leftEdge == rightEdge) // HACK zero-width shapes collide with everything currently.
+            rightEdge += eps;
+      add(QRectF(leftEdge, y, rightEdge - leftEdge, 0));
+      }
+
+//---------------------------------------------------------
 //   translate
 //---------------------------------------------------------
 
@@ -25,6 +41,21 @@ void Shape::translate(const QPointF& pt)
             r.translate(pt);
       }
 
+void Shape::translateX(qreal xo)
+      {
+      for (QRectF& r : *this) {
+            r.setLeft(r.left() + xo);
+            r.setRight(r.right() + xo);
+            }
+      }
+void Shape::translateY(qreal yo)
+      {
+      for (QRectF& r : *this) {
+            r.setTop(r.top() + yo);
+            r.setBottom(r.bottom() + yo);
+            }
+      }
+
 //---------------------------------------------------------
 //   translated
 //---------------------------------------------------------
@@ -32,29 +63,20 @@ void Shape::translate(const QPointF& pt)
 Shape Shape::translated(const QPointF& pt) const
       {
       Shape s;
-      for (const QRectF& r : *this)
+      for (const ShapeElement& r : *this)
+#ifndef NDEBUG
+            s.add(r.translated(pt), r.text);
+#else
             s.add(r.translated(pt));
+#endif
       return s;
-      }
-
-//---------------------------------------------------------
-//   draw
-//    Draw outline of shape. For testing only.
-//---------------------------------------------------------
-
-void Shape::draw(QPainter* p) const
-      {
-      p->save();
-      for (const QRectF& r : *this)
-            p->drawRect(r);
-      p->restore();
       }
 
 //-------------------------------------------------------------------
 //   minHorizontalDistance
 //    a is located right of this shape.
-//    Calculates the minimum vertical distance between the two shapes
-//    so they dont touch.
+//    Calculates the minimum horizontal distance between the two shapes
+//    so they don’t touch.
 //-------------------------------------------------------------------
 
 qreal Shape::minHorizontalDistance(const Shape& a) const
@@ -66,7 +88,6 @@ qreal Shape::minHorizontalDistance(const Shape& a) const
             for (const QRectF& r1 : *this) {
                   qreal ay1 = r1.top();
                   qreal ay2 = r1.bottom();
-//                  if (intersects(ay1, ay2, by1, by2))
                   if (Ms::intersects(ay1, ay2, by1, by2)
                      || ((r1.height() == 0.0) && (r2.height() == 0.0) && (ay1 == by1))
                      || ((r1.width() == 0.0) || (r2.width() == 0.0)))
@@ -78,7 +99,7 @@ qreal Shape::minHorizontalDistance(const Shape& a) const
 
 //-------------------------------------------------------------------
 //   minVerticalDistance
-//    a is located below of this shape.
+//    a is located below this shape.
 //    Calculates the minimum distance between two shapes.
 //-------------------------------------------------------------------
 
@@ -86,9 +107,13 @@ qreal Shape::minVerticalDistance(const Shape& a) const
       {
       qreal dist = -1000000.0;      // min real
       for (const QRectF& r2 : a) {
+            if (r2.height() <= 0.0)
+                  continue;
             qreal bx1 = r2.left();
             qreal bx2 = r2.right();
             for (const QRectF& r1 : *this) {
+                  if (r1.height() <= 0.0)
+                        continue;
                   qreal ax1 = r1.left();
                   qreal ax2 = r1.right();
                   if (Ms::intersects(ax1, ax2, bx1, bx2))
@@ -135,7 +160,7 @@ qreal Shape::right() const
 
 qreal Shape::top() const
       {
-      qreal dist = 0.0;
+      qreal dist = 1000000.0;
       for (const QRectF& r : *this) {
             if (r.top() < dist)
                   dist = r.top();
@@ -149,7 +174,7 @@ qreal Shape::top() const
 
 qreal Shape::bottom() const
       {
-      qreal dist = 0.0;
+      qreal dist = -1000000.0;
       for (const QRectF& r : *this) {
             if (r.bottom() > dist)
                   dist = r.bottom();
@@ -201,7 +226,8 @@ void Shape::remove(const QRectF& r)
                   return;
                   }
             }
-//      qWarning("Shape::remove: QRectF not found in Shape");
+      // qWarning("Shape::remove: QRectF not found in Shape");
+      qFatal("Shape::remove: QRectF not found in Shape");
       }
 
 void Shape::remove(const Shape& s)
@@ -237,31 +263,58 @@ bool Shape::intersects(const QRectF& rr) const
       }
 
 //---------------------------------------------------------
+//   intersects
+//---------------------------------------------------------
+
+bool Shape::intersects(const Shape& other) const
+      {
+      for (const QRectF& r : other) {
+            if (intersects(r))
+                  return true;
+            }
+      return false;
+      }
+
+//---------------------------------------------------------
 //   paint
 //---------------------------------------------------------
 
-void Shape::paint(QPainter& p)
+void Shape::paint(QPainter& p) const
       {
       for (const QRectF& r : *this)
             p.drawRect(r);
       }
 
-
-#ifdef DEBUG_SHAPES
-
+#ifndef NDEBUG
 //---------------------------------------------------------
 //   dump
 //---------------------------------------------------------
 
 void Shape::dump(const char* p) const
       {
-      printf("Shape dump: %p %s size %d\n", this, p, size());
-      for (const QRectF& r : *this) {
-            printf("   %f %f %f %f\n", r.x(), r.y(), r.width(), r.height());
+      qDebug("Shape dump: %p %s size %zu", this, p, size());
+      for (const ShapeElement& r : *this) {
+            r.dump();
             }
-
       }
 
+void ShapeElement::dump() const
+      {
+      qDebug("   %s: %f %f %f %f", text ? text : "", x(), y(), width(), height());
+      }
+
+//---------------------------------------------------------
+//   add
+//---------------------------------------------------------
+
+void Shape::add(const QRectF& r, const char* t)
+      {
+      push_back(ShapeElement(r, t));
+      }
+
+#endif
+
+#ifdef DEBUG_SHAPES
 //---------------------------------------------------------
 //   testShapes
 //---------------------------------------------------------

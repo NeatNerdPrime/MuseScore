@@ -20,7 +20,6 @@ namespace Ms {
 
 class SLine;
 class System;
-class MuseScoreView;
 
 //---------------------------------------------------------
 //   @@ LineSegment
@@ -33,21 +32,17 @@ class MuseScoreView;
 //---------------------------------------------------------
 
 class LineSegment : public SpannerSegment {
-      Q_GADGET
-
    protected:
       virtual void startEdit(EditData&) override;
       virtual void editDrag(EditData&) override;
       virtual bool edit(EditData&) override;
       virtual void updateGrips(EditData&) const override;
-      virtual void setGrip(Grip, const QPointF& p) override;
-      virtual QPointF getGrip(Grip) const override;
       virtual QPointF gripAnchor(Grip) const override;
       virtual void startEditDrag(EditData&) override;
-      virtual void endEditDrag(EditData&) override;
 
    public:
-      LineSegment(Score* s) : SpannerSegment(s) {}
+      LineSegment(Spanner* sp, Score* s, ElementFlags f = ElementFlag::NOTHING) : SpannerSegment(sp, s, f) {}
+      LineSegment(Score* s, ElementFlags f = ElementFlag::NOTHING) : SpannerSegment(s, f) {}
       LineSegment(const LineSegment&);
       virtual void draw(QPainter*) const = 0;
       SLine* line() const                         { return (SLine*)spanner(); }
@@ -58,9 +53,8 @@ class LineSegment : public SpannerSegment {
       virtual void read(XmlReader&) override;
       bool readProperties(XmlReader&);
 
-      virtual QVariant getProperty(P_ID id) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID id) const override;
+      virtual Element* propertyDelegate(Pid) override;
+
       virtual QLineF dragAnchor() const override;
       };
 
@@ -70,24 +64,18 @@ class LineSegment : public SpannerSegment {
 //---------------------------------------------------------
 
 class SLine : public Spanner {
-      Q_GADGET
-
-      Spatium _lineWidth      { 0.15 };
+      qreal _lineWidth;
       QColor _lineColor       { MScore::defaultColor };
       Qt::PenStyle _lineStyle { Qt::SolidLine };
       qreal _dashLineLen      { 5.0   };
       qreal _dashGapLen       { 5.0   };
       bool _diagonal          { false };
 
-      PropertyFlags lineWidthStyle;
-      PropertyFlags lineStyleStyle;
-      PropertyFlags lineColorStyle;
-
    protected:
       virtual QPointF linePos(Grip, System** system) const;
 
    public:
-      SLine(Score* s);
+      SLine(Score* s, ElementFlags = ElementFlag::NOTHING);
       SLine(const SLine&);
 
       virtual void layout() override;
@@ -106,10 +94,10 @@ class SLine : public Spanner {
       bool diagonal() const               { return _diagonal; }
       void setDiagonal(bool v)            { _diagonal = v;    }
 
-      Spatium lineWidth() const           { return _lineWidth;            }
+      qreal lineWidth() const             { return _lineWidth;            }
       QColor lineColor() const            { return _lineColor;            }
       Qt::PenStyle lineStyle() const      { return _lineStyle;            }
-      void setLineWidth(const Spatium& v) { _lineWidth = v;               }
+      void setLineWidth(const qreal& v)   { _lineWidth = v;               }
       void setLineColor(const QColor& v)  { _lineColor = v;               }
       void setLineStyle(Qt::PenStyle v)   { _lineStyle = v;               }
 
@@ -118,16 +106,16 @@ class SLine : public Spanner {
       qreal dashGapLen() const            { return _dashGapLen; }
       void setDashGapLen(qreal val)       { _dashGapLen = val; }
 
-      LineSegment* frontSegment() const   { return (LineSegment*)spannerSegments().front(); }
-      LineSegment* backSegment() const    { return (LineSegment*)spannerSegments().back();  }
-      LineSegment* takeFirstSegment()     { return (LineSegment*)spannerSegments().takeFirst(); }
-      LineSegment* takeLastSegment()      { return (LineSegment*)spannerSegments().takeLast(); }
-      LineSegment* segmentAt(int n) const { return (LineSegment*)spannerSegments().at(n); }
+      LineSegment* frontSegment()               { return toLineSegment(Spanner::frontSegment()); }
+      const LineSegment* frontSegment() const   { return toLineSegment(Spanner::frontSegment()); }
+      LineSegment* backSegment()                { return toLineSegment(Spanner::backSegment());  }
+      const LineSegment* backSegment() const    { return toLineSegment(Spanner::backSegment());  }
+      LineSegment* segmentAt(int n)             { return toLineSegment(Spanner::segmentAt(n));   }
+      const LineSegment* segmentAt(int n) const { return toLineSegment(Spanner::segmentAt(n));   }
 
-      virtual QVariant getProperty(P_ID id) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID id) const override;
-      virtual StyleIdx getPropertyStyle(P_ID) const override;
+      virtual QVariant getProperty(Pid id) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid id) const override;
 
       friend class LineSegment;
       };

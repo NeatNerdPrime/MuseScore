@@ -17,8 +17,6 @@
 
 namespace Ms {
 
-enum class SubStyle;
-
 //---------------------------------------------------------
 //   @@ Jump
 ///    Jump label
@@ -30,16 +28,7 @@ enum class SubStyle;
 //   @P playUntil   string
 //---------------------------------------------------------
 
-
-class Jump : public Text {
-      Q_GADGET
-
-      Q_PROPERTY(QString continueAt  READ continueAt  WRITE undoSetContinueAt)
-      Q_PROPERTY(QString jumpTo      READ jumpTo      WRITE undoSetJumpTo)
-      Q_PROPERTY(QString playUntil   READ playUntil   WRITE undoSetPlayUntil)
-      //Q_Property(Ms::Jump::Type      READ jumpType)
-      //Q_ENUMS(Type)
-
+class Jump final : public TextBase {
       QString _jumpTo;
       QString _playUntil;
       QString _continueAt;
@@ -64,6 +53,7 @@ class Jump : public Text {
 
       virtual Jump* clone() const override      { return new Jump(*this);   }
       virtual ElementType type() const override { return ElementType::JUMP; }
+      virtual int subtype() const override      { return int(jumpType());   }
 
       Measure* measure() const                  { return toMeasure(parent()); }
 
@@ -84,14 +74,12 @@ class Jump : public Text {
       bool playRepeats() const                  { return _playRepeats; }
       void setPlayRepeats(bool val)             { _playRepeats = val;  }
 
-      virtual bool systemFlag() const override  { return true;        }
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid) const override;
 
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID) const override;
-
-      Element* nextElement() override;
-      Element* prevElement() override;
+      Element* nextSegmentElement() override;
+      Element* prevSegmentElement() override;
       virtual QString accessibleInfo() const override;
       };
 
@@ -101,7 +89,6 @@ class Jump : public Text {
 
 struct JumpTypeTable {
       Jump::Type type;
-      SubStyle subStyle;
       const char* text;
       const char* jumpTo;
       const char* playUntil;

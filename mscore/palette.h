@@ -1,7 +1,6 @@
 //=============================================================================
 //  MusE Score
 //  Linux Music Score Editor
-//  $Id: palette.h 5395 2012-02-28 18:09:57Z wschweer $
 //
 //  Copyright (C) 2002-2011 Werner Schweer and others
 //
@@ -21,8 +20,8 @@
 #ifndef __PALETTE_H__
 #define __PALETTE_H__
 
-#include "ui_palette.h"
-#include "ui_cellproperties.h"
+#include "palette/palettetree.h"
+#include "ui_paletteProperties.h"
 #include "libmscore/sym.h"
 
 namespace Ms {
@@ -32,26 +31,6 @@ class Sym;
 class XmlWriter;
 class XmlReader;
 class Palette;
-
-//---------------------------------------------------------
-//   PaletteCell
-//---------------------------------------------------------
-
-struct PaletteCell {
-      ~PaletteCell();
-
-      Element* element { 0 };
-      QString name;           // used for tool tip
-      QString tag;
-
-      bool drawStaff { false };
-      double x       { 0.0   };
-      double y       { 0.0   };
-      double xoffset { 0.0   };
-      double yoffset { 0.0   };      // in spatium units of "gscore"
-      qreal mag      { 1.0   };
-      bool readOnly  { false };
-      };
 
 //---------------------------------------------------------
 //   PaletteProperties
@@ -68,20 +47,6 @@ class PaletteProperties : public QDialog, private Ui::PaletteProperties {
       };
 
 //---------------------------------------------------------
-//   PaletteCellProperties
-//---------------------------------------------------------
-
-class PaletteCellProperties : public QDialog, private Ui::PaletteCellProperties {
-      Q_OBJECT
-
-      PaletteCell* cell;
-      virtual void accept();
-      virtual void hideEvent(QHideEvent*);
-   public:
-      PaletteCellProperties(PaletteCell* p, QWidget* parent = 0);
-      };
-
-//---------------------------------------------------------
 //    PaletteScrollArea
 //---------------------------------------------------------
 
@@ -90,6 +55,9 @@ class PaletteScrollArea : public QScrollArea {
       bool _restrictHeight;
 
       virtual void resizeEvent(QResizeEvent*);
+
+   protected:
+      virtual void keyPressEvent(QKeyEvent* event) override;
 
    public:
       PaletteScrollArea(Palette* w, QWidget* parent = 0);
@@ -140,7 +108,6 @@ class Palette : public QWidget {
       virtual void dropEvent(QDropEvent*) override;
       virtual void contextMenuEvent(QContextMenuEvent*) override;
 
-      int idx(const QPoint&) const;
       int idx2(const QPoint&) const;
       QRect idxRect(int) const;
 
@@ -160,6 +127,10 @@ class Palette : public QWidget {
       Palette(QWidget* parent = 0);
       virtual ~Palette();
 
+      void nextPaletteElement();
+      void prevPaletteElement();
+      void applyPaletteElement();
+      static void applyPaletteElement(Element* element, Qt::KeyboardModifiers modifiers = 0);
       PaletteCell* append(Element*, const QString& name, QString tag = QString(),
          qreal mag = 1.0);
       PaletteCell* add(int idx, Element*, const QString& name,
@@ -193,7 +164,7 @@ class Palette : public QWidget {
       qreal yOffset() const          { return _yOffset;        }
       int columns() const            { return width() / hgrid; }
       int rows() const;
-      int size() const               { return cells.size(); }
+      int size() const               { return filterActive ? dragCells.size() : cells.size(); }
       PaletteCell* cellAt(int index) const { return ccp()->value(index); }
       void setCellReadOnly(int c, bool v)  { cells[c]->readOnly = v;   }
       QString name() const           { return _name;        }
@@ -205,8 +176,13 @@ class Palette : public QWidget {
       bool filter(const QString& text);
       void setShowContextMenu(bool val) { _showContextMenu = val; }
 
+      int getCurrentIdx() { return currentIdx; }
+      void setCurrentIdx(int i) { currentIdx = i; }
+      bool isFilterActive() { return filterActive == true; }
+      QList<PaletteCell*> getDragCells() { return dragCells; }
       virtual int heightForWidth(int) const;
       virtual QSize sizeHint() const;
+      int idx(const QPoint&) const;
       };
 
 

@@ -23,31 +23,25 @@ class Note;
 //   @@ TextLineSegment
 //---------------------------------------------------------
 
-class TextLineSegment : public TextLineBaseSegment {
-      Q_GADGET
+class TextLineSegment final : public TextLineBaseSegment {
 
-   protected:
+      virtual Sid getPropertyStyle(Pid) const override;
 
    public:
-      TextLineSegment(Score* s);
-      virtual ElementType type() const override     { return ElementType::TEXTLINE_SEGMENT; }
+      TextLineSegment(Spanner* sp, Score* s);
+      virtual ElementType type() const override       { return ElementType::TEXTLINE_SEGMENT; }
       virtual TextLineSegment* clone() const override { return new TextLineSegment(*this); }
-      TextLine* textLine() const                      { return (TextLine*)spanner(); }
+      TextLine* textLine() const                      { return toTextLine(spanner()); }
       virtual void layout() override;
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID) const override;
-      virtual PropertyFlags propertyFlags(P_ID) const override;
-      virtual void resetProperty(P_ID id) override;
-      virtual void styleChanged() override;
       };
 
 //---------------------------------------------------------
 //   @@ TextLine
 //---------------------------------------------------------
 
-class TextLine : public TextLineBase {
-      Q_GADGET
+class TextLine final : public TextLineBase {
+
+      virtual Sid getPropertyStyle(Pid) const override;
 
    public:
       TextLine(Score* s);
@@ -55,13 +49,10 @@ class TextLine : public TextLineBase {
       ~TextLine() {}
 
       virtual TextLine* clone() const           { return new TextLine(*this); }
-      virtual ElementType type() const        { return ElementType::TEXTLINE; }
-      virtual void styleChanged() override;
-      virtual void reset() override;
+      virtual ElementType type() const          { return ElementType::TEXTLINE; }
+      virtual void write(XmlWriter&) const override;
       virtual LineSegment* createLineSegment() override;
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID) const override;
+      virtual QVariant propertyDefault(Pid) const override;
       };
 
 

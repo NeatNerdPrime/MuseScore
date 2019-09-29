@@ -1,26 +1,29 @@
-# MuseScore: Music notation and composition software
+![MuseScore](mscore/data/musescore_logo_full.png)  
+ Music notation and composition software
 
-MuseScore is an open source and free music notation software.
-For support, contribution, bug reports, visit [MuseScore.org](https://musescore.org). Fork and make pull requests!
+[![Travis CI](https://secure.travis-ci.org/musescore/MuseScore.svg?branch=master)](https://travis-ci.org/musescore/MuseScore)
+[![Appveyor](https://ci.appveyor.com/api/projects/status/bp3ww6v985i64ece/branch/master?svg=true)](https://ci.appveyor.com/project/MuseScore/musescore/branch/master)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
+
+MuseScore is an open source and free music notation software. For support, contribution, and bug reports visit MuseScore.org. Fork and make pull requests!
 
 ## Features
 
 * WYSIWYG design, notes are entered on a "virtual notepaper"
 * TrueType font(s) for printing & display allows for high quality scaling to all sizes
-* easy & fast note entry
-* many editing functions
+* Easy & fast note entry
+* Many editing functions
 * MusicXML import/export
-* Midi (SMF) import/export
+* MIDI (SMF) import/export
 * MuseData import
-* Midi input for note entry
-* integrated sequencer and software synthesizer to play the score
-* print or create pdf files
+* MIDI input for note entry
+* Integrated sequencer and software synthesizer to play the score
+* Print or create pdf files
 
 ## More info
 * [MuseScore Homepage](https://musescore.org)
 * [MuseScore Git workflow instructions](https://musescore.org/en/developers-handbook/git-workflow).
 * [How to compile MuseScore?](https://musescore.org/en/developers-handbook/compilation)
-* Build status: [![Build Status](https://secure.travis-ci.org/musescore/MuseScore.png)](https://travis-ci.org/musescore/MuseScore)
 
 ## License
 MuseScore is licensed under GPL version 2.0. See LICENSE.GPL in the same directory.
@@ -48,8 +51,6 @@ Kept as an example of how to integrate with a complex synthesizer.
 
 * **mscore** Main code for the MuseScore UI
 
-* **mstyle** Clone of KDE4 style Oxygen
-
 * **msynth** Abstract interface to Fluid + Aeolus
 
 * **mtest** Unit testing using QTest
@@ -67,8 +68,8 @@ Kept as an example of how to integrate with a complex synthesizer.
     * **thirdparty/rtf2html**
     Used for capella import
 
-    * **thirdparty/diff**
-    Not used currently. [Diff, Match and Patch Library](https://code.google.com/p/google-diff-match-patch/)
+    * **thirdparty/dtl**
+    Used for the score comparison tool. [Diff Template Library](https://github.com/cubicdaiya/dtl)
 
     * **thirdparty/ofqf**
     OSC server interface. Based on [OSC for Qt4](http://www.arnoldarts.de/projects/ofqf/)
@@ -93,7 +94,7 @@ If using git to download repo of entire code history, type:
     git clone https://github.com/musescore/MuseScore.git
     cd MuseScore
 
-Else can just download the latest source release tarball from https://github.com/musescore/MuseScore/releases, and then from your download directory type:
+Otherwise, you can just download the latest source release tarball from https://github.com/musescore/MuseScore/releases, and then from your download directory type:
 
     tar xzf MuseScore-x.x.x.tar.gz
     cd MuseScore-x.x.x
@@ -110,7 +111,7 @@ To start MuseScore, type:
 
     ./build.release/mscore/mscore
 
-The Start Center window will appear on every invocation, until you disable that setting via the "Preferences" dialog.
+The Start Center window will appear on every invocation until you disable that setting via the "Preferences" dialog.
 
 ### Installing
 To install to default prefix using root user, type:
@@ -125,4 +126,6 @@ To run the debug version, type:
     ./build.debug/mscore/mscore
 
 ### Testing
-See [mtest/README.md](/mtest/README.md) or https://musescore.org/en/developers-handbook/testing for instructions on how to run the test suite.
+See [mtest/README.md](/mtest/README.md) or [the developer handbook](https://musescore.org/handbook/developers-handbook/finding-your-way-around/automated-tests) for instructions on how to run the test suite.
+
+The new [script testing facility](https://musescore.org/node/278278) is also available to create your own automated tests. Please try it out!

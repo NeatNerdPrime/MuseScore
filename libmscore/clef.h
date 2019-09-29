@@ -127,21 +127,15 @@ class ClefInfo {
 //   @P small         bool    small, mid-staff clef (read only, set by layout)
 //---------------------------------------------------------
 
-class Clef : public Element {
-      Q_GADGET
-      Q_PROPERTY(bool showCourtesy READ showCourtesy WRITE undoSetShowCourtesy)
-      Q_PROPERTY(bool small READ small)
-
+class Clef final : public Element {
       SymId symId;
-      bool _showCourtesy;
-      bool _small;
+      bool _showCourtesy = true;
+      bool _small = false;
 
-      ClefTypeList _clefTypes;
+      ClefTypeList _clefTypes { ClefType::INVALID };
 
    public:
       Clef(Score*);
-      Clef(const Clef&);
-      ~Clef() {}
       virtual Clef* clone() const        { return new Clef(*this); }
       virtual ElementType type() const { return ElementType::CLEF; }
       virtual qreal mag() const;
@@ -156,16 +150,15 @@ class Clef : public Element {
       virtual void read(XmlReader&);
       virtual void write(XmlWriter&) const;
 
-      virtual bool isEditable() const                    { return false; }
+      virtual bool isEditable() const  { return false; }
 
       bool small() const               { return _small; }
       void setSmall(bool val);
 
-      int tick() const;
-
       bool showCourtesy() const        { return _showCourtesy; }
       void setShowCourtesy(bool v)     { _showCourtesy = v; }
       void undoSetShowCourtesy(bool v);
+      Clef* otherClef();
 
       static ClefType clefType(const QString& s);
       const char* clefTypeName();
@@ -182,12 +175,12 @@ class Clef : public Element {
       void setClefType(const ClefTypeList& ctl) { _clefTypes = ctl; }
       virtual void spatiumChanged(qreal oldValue, qreal newValue) override;
 
-      QVariant getProperty(P_ID propertyId) const;
-      bool setProperty(P_ID propertyId, const QVariant&);
-      QVariant propertyDefault(P_ID id) const;
+      QVariant getProperty(Pid propertyId) const;
+      bool setProperty(Pid propertyId, const QVariant&);
+      QVariant propertyDefault(Pid id) const;
 
-      virtual Element* nextElement() override;
-      virtual Element* prevElement() override;
+      virtual Element* nextSegmentElement() override;
+      virtual Element* prevSegmentElement() override;
       QString accessibleInfo() const override;
       void clear();
       };

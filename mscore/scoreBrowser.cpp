@@ -24,7 +24,12 @@ namespace Ms {
 QSize ScoreListWidget::sizeHint() const
       {
       int cols = (width()-SPACE) / (CELLW + SPACE);
-      int n    = count();
+      int n = 0;
+      for (int i = 0; i < count(); ++i) {
+            if (!item(i)->isHidden())
+                  n++;
+            }
+
       int rows = 1;
       if (cols > 0)
             rows = (n+cols-1) / cols;
@@ -57,6 +62,10 @@ ScoreBrowser::ScoreBrowser(QWidget* parent)
       scoreList->setLayout(new QVBoxLayout);
       scoreList->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
       scoreList->layout()->setMargin(0);
+      _noMatchedScoresLabel = new QLabel(tr("There are no templates matching the current search."));
+      _noMatchedScoresLabel->setHidden(true);
+      _noMatchedScoresLabel->setObjectName("noMatchedScoresLabel");
+      scoreList->layout()->addWidget(_noMatchedScoresLabel);
       connect(preview, SIGNAL(doubleClicked(QString)), SIGNAL(scoreActivated(QString)));
       if (!_showPreview)
             preview->setVisible(false);
@@ -89,7 +98,11 @@ ScoreListWidget* ScoreBrowser::createScoreList()
       if (!_showPreview)
             sl->setSelectionMode(QAbstractItemView::NoSelection);
 
-      connect(sl, SIGNAL(itemClicked(QListWidgetItem*)),   this, SLOT(scoreChanged(QListWidgetItem*)), Qt::QueuedConnection);
+      if (!style()->styleHint(QStyle::SH_ItemView_ActivateItemOnSingleClick)) {
+            // Set our handler for item clicks only if Qt
+            // doesn't treat a click as an item activation.
+            connect(sl, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(scoreClicked(QListWidgetItem*)), Qt::QueuedConnection);
+            }
       connect(sl, SIGNAL(itemActivated(QListWidgetItem*)), SLOT(setScoreActivated(QListWidgetItem*)));
       scoreLists.append(sl);
       return sl;
@@ -142,7 +155,7 @@ ScoreItem* ScoreBrowser::genScoreItem(const QFileInfo& fi, ScoreListWidget* l)
             f.setBold(true);
             }
       else if (fi.completeBaseName() == "Create_New_Score") {
-            item->setText(tr("Create New Score..."));
+            item->setText(tr("Create New Score…"));
             f.setBold(true);
             }
       else {
@@ -169,8 +182,16 @@ void ScoreBrowser::setScores(QFileInfoList& s)
       scoreLists.clear();
 
       QVBoxLayout* l = static_cast<QVBoxLayout*>(scoreList->layout());
-      while (l->count())
-            l->removeItem(l->itemAt(0));
+      QLayoutItem* child;
+      while (l->count()) {
+            child = l->takeAt(0);
+            if (child->widget() != 0) {
+                  if (child->widget()->objectName() == "noMatchedScoresLabel") // do not delete
+                        continue;
+                  delete child->widget();
+                  }
+            delete child;
+            }
 
       ScoreListWidget* sl = 0;
 
@@ -180,22 +201,22 @@ void ScoreBrowser::setScores(QFileInfoList& s)
             std::sort(s.begin(), s.end(), [](QFileInfo a, QFileInfo b)->bool { return a.fileName() < b.fileName(); });
 
       QSet<QString> entries; //to avoid duplicates
-      for (const QFileInfo& fi : s) {
-            if (fi.isDir()) {
-                  QString s(fi.fileName());
-                  if (!s.isEmpty() && s[0].isNumber() && _stripNumbers)
-                        s = s.mid(3);
-                  s = s.replace('_', ' ');
-                  QLabel* label = new QLabel(s);
+      for (const QFileInfo& fil : s) {
+            if (fil.isDir()) {
+                  QString st(fil.fileName());
+                  if (!st.isEmpty() && st[0].isNumber() && _stripNumbers)
+                        st = st.mid(3);
+                  st = st.replace('_', ' ');
+                  QLabel* label = new QLabel(st);
                   QFont f = label->font();
                   f.setBold(true);
                   label->setFont(f);
                   static_cast<QVBoxLayout*>(l)->addWidget(label);
-                  QDir dir(fi.filePath());
+                  QDir dir(fil.filePath());
                   sl = createScoreList();
                   l->addWidget(sl);
                   unsigned count = 0; //nbr of entries added
-                  for (const QFileInfo& fi : dir.entryInfoList(filter, QDir::Files, QDir::Name)){
+                  for (const QFileInfo& fi : dir.entryInfoList(filter, QDir::Files, QDir::Name)) {
                         if (entries.contains(fi.filePath()))
                             continue;
                         sl->addItem(genScoreItem(fi, sl));
@@ -211,10 +232,10 @@ void ScoreBrowser::setScores(QFileInfoList& s)
             }
       for (const QFileInfo& fi : s) {
             if (fi.isFile()) {
-                  QString s = fi.filePath();
-                  if (entries.contains(s))
+                  QString st = fi.filePath();
+                  if (entries.contains(st))
                       continue;
-                  if (s.endsWith(".mscz") || s.endsWith(".mscx")) {
+                  if (st.endsWith(".mscz") || st.endsWith(".mscx")) {
                         if (!sl) {
                               if (_showCustomCategory) {
                                     QLabel* label = new QLabel(tr("Custom Templates"));
@@ -227,7 +248,7 @@ void ScoreBrowser::setScores(QFileInfoList& s)
                               l->insertWidget(3,sl);
                               }
                         sl->addItem(genScoreItem(fi, sl));
-                        entries.insert(s);
+                        entries.insert(st);
                         }
                   }
             }
@@ -266,13 +287,51 @@ void ScoreBrowser::selectLast()
       }
 
 //---------------------------------------------------------
-//   scoreChanged
+//   filter
+//      filter which scores are visible based on searchString
+//---------------------------------------------------------
+void ScoreBrowser::filter(const QString &searchString)
+      {
+      int numCategoriesWithMathingScores = 0;
+
+      for (ScoreListWidget* list : scoreLists) {
+            int numMatchedScores = 0;
+
+            for (int i = 0; i < list->count(); ++i) {
+                  ScoreItem* score = static_cast<ScoreItem*>(list->item(i));
+                  QString title = score->text();
+                  bool isMatch = title.contains(searchString, Qt::CaseInsensitive);
+
+                  score->setHidden(!isMatch);
+
+                  if (isMatch)
+                        numMatchedScores++;
+                  }
+
+            int listindex = scoreList->layout()->indexOf(list);
+            QLayoutItem *label = scoreList->layout()->itemAt(listindex - 1);
+            if (label && label->widget()) {
+                  label->widget()->setHidden(numMatchedScores == 0);
+                  }
+
+            list->setHidden(numMatchedScores == 0);
+            if (numMatchedScores > 0) {
+                  numCategoriesWithMathingScores++;
+                  }
+            }
+
+      _noMatchedScoresLabel->setHidden(numCategoriesWithMathingScores > 0);
+      }
+
+//---------------------------------------------------------
+//   scoreClicked
 //---------------------------------------------------------
 
-void ScoreBrowser::scoreChanged(QListWidgetItem* current)
+void ScoreBrowser::scoreClicked(QListWidgetItem* current)
       {
       if (!current)
             return;
+
       ScoreItem* item = static_cast<ScoreItem*>(current);
       if (!_showPreview)
             emit scoreActivated(item->info().filePath());

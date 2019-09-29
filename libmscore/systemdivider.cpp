@@ -22,9 +22,8 @@ namespace Ms {
 //   SystemDivider
 //---------------------------------------------------------
 
-SystemDivider::SystemDivider(Score* s) : Symbol(s)
+SystemDivider::SystemDivider(Score* s) : Symbol(s, ElementFlag::SYSTEM | ElementFlag::NOT_SELECTABLE)
       {
-      setSystemFlag(true);
       // default value, but not valid until setDividerType()
       _dividerType = SystemDivider::Type::LEFT;
       _sym = SymId::systemDivider;
@@ -50,9 +49,9 @@ void SystemDivider::layout()
       ScoreFont* sf = score()->scoreFont();
 
       if (_dividerType == SystemDivider::LEFT)
-            sid = Sym::name2id(score()->styleSt(StyleIdx::dividerLeftSym));
+            sid = Sym::name2id(score()->styleSt(Sid::dividerLeftSym));
       else
-            sid = Sym::name2id(score()->styleSt(StyleIdx::dividerRightSym));
+            sid = Sym::name2id(score()->styleSt(Sid::dividerRightSym));
       setSym(sid, sf);
       Symbol::layout();
       }
@@ -64,14 +63,10 @@ void SystemDivider::layout()
 void SystemDivider::setDividerType(SystemDivider::Type v)
       {
       _dividerType = v;
-      if (v == SystemDivider::LEFT) {
-            setXoff(score()->styleD(StyleIdx::dividerLeftX));
-            setYoff(score()->styleD(StyleIdx::dividerLeftY));
-            }
-      else {
-            setXoff(score()->styleD(StyleIdx::dividerRightX));
-            setYoff(score()->styleD(StyleIdx::dividerRightY));
-            }
+      if (v == SystemDivider::LEFT)
+            setOffset(QPointF(score()->styleD(Sid::dividerLeftX), score()->styleD(Sid::dividerLeftY)));
+      else
+            setOffset(QPointF(score()->styleD(Sid::dividerRightX), score()->styleD(Sid::dividerRightY)));
       }
 
 //---------------------------------------------------------
@@ -91,9 +86,9 @@ QRectF SystemDivider::drag(EditData& ed)
 void SystemDivider::write(XmlWriter& xml) const
       {
       if (dividerType() == SystemDivider::Type::LEFT)
-            xml.stag(QString("SystemDivider type=\"left\""));
+            xml.stag(this, "type=\"left\"");
       else
-            xml.stag(QString("SystemDivider type=\"right\""));
+            xml.stag(this, "type=\"right\"");
       writeProperties(xml);
       xml.etag();
       }
@@ -107,17 +102,15 @@ void SystemDivider::read(XmlReader& e)
       ScoreFont* sf = score()->scoreFont();
       if (e.attribute("type") == "left") {
             _dividerType = SystemDivider::Type::LEFT;
-            SymId sym = Sym::name2id(score()->styleSt(StyleIdx::dividerLeftSym));
+            SymId sym = Sym::name2id(score()->styleSt(Sid::dividerLeftSym));
             setSym(sym, sf);
-            setXoff(score()->styleD(StyleIdx::dividerLeftX));
-            setYoff(score()->styleD(StyleIdx::dividerLeftY));
+            setOffset(QPointF(score()->styleD(Sid::dividerLeftX), score()->styleD(Sid::dividerLeftY)));
             }
       else {
             _dividerType = SystemDivider::Type::RIGHT;
-            SymId sym = Sym::name2id(score()->styleSt(StyleIdx::dividerRightSym));
+            SymId sym = Sym::name2id(score()->styleSt(Sid::dividerRightSym));
             setSym(sym, sf);
-            setXoff(score()->styleD(StyleIdx::dividerRightX));
-            setYoff(score()->styleD(StyleIdx::dividerRightY));
+            setOffset(QPointF(score()->styleD(Sid::dividerRightX), score()->styleD(Sid::dividerRightY)));
             }
       Symbol::read(e);
       }

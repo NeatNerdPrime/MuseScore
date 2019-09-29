@@ -6,7 +6,7 @@
 #include "libmscore/part.h"
 #include "libmscore/staff.h"
 #include "libmscore/score.h"
-#include "mscore/preferences.h"
+#include "importmidi_operations.h"
 #include "midi/midiinstrument.h"
 
 #include <set>
@@ -14,7 +14,6 @@
 
 namespace Ms {
 
-extern Preferences preferences;
 extern QList<InstrumentGroup*> instrumentGroups;
 
 namespace MidiInstr {
@@ -172,9 +171,9 @@ const InstrumentTemplate* findClosestInstrument(const MTrack &track)
                   if (track.mtrack->drumTrack() != isDrumTemplate)
                         continue;
                   for (const auto &channel: templ->channel) {
-                        if (channel.program < track.program
-                                    && channel.program > maxLessProgram) {
-                              maxLessProgram = channel.program;
+                        if (channel.program() < track.program
+                                    && channel.program() > maxLessProgram) {
+                              maxLessProgram = channel.program();
                               closestTemplate = templ;
                               break;
                               }
@@ -206,7 +205,7 @@ std::vector<const InstrumentTemplate *> findInstrumentsForProgram(const MTrack &
                         findNotEmptyDrumPitches(drumPitches, templ);
 
                   for (const auto &channel: templ->channel) {
-                        if (channel.program == program) {
+                        if (channel.program() == program) {
                               if (isDrumTemplate && templ->drumset) {
                                     if (hasNotDefinedDrumPitch(trackPitches, drumPitches))
                                           break;
@@ -351,12 +350,15 @@ std::vector<const InstrumentTemplate *> findSuitableInstruments(const MTrack &tr
       return templates;
       }
 
-void findInstrumentsForAllTracks(const QList<MTrack> &tracks)
+void findInstrumentsForAllTracks(const QList<MTrack> &tracks, bool forceReload)
       {
-      auto& opers = preferences.midiImportOperations;
+      auto& opers = midiImportOperations;
       auto &instrListOption = opers.data()->trackOpers.msInstrList;
 
-      if (opers.data()->processingsOfOpenedFile == 0) {
+      if (forceReload)
+            instrListOption.clear();
+
+      if (opers.data()->processingsOfOpenedFile == 0 || forceReload) {
                         // create instrument list on MIDI file opening
             for (const auto &track: tracks) {
                   instrListOption.setValue(track.indexOfOperation,
@@ -369,9 +371,20 @@ void findInstrumentsForAllTracks(const QList<MTrack> &tracks)
             }
       }
 
+void instrumentTemplatesChanged()
+      {
+      QStringList files(midiImportOperations.allMidiFiles());
+      for (const QString& file : files) {
+            MidiOperations::CurrentMidiFileSetter s(midiImportOperations, file);
+            MidiOperations::FileData* data = midiImportOperations.data();
+            if (data)
+                  findInstrumentsForAllTracks(data->tracks, /* forceReload */ true);
+            }
+      }
+
 void createInstruments(Score *score, QList<MTrack> &tracks)
       {
-      const auto& opers = preferences.midiImportOperations;
+      const auto& opers = midiImportOperations;
       const auto &instrListOption = opers.data()->trackOpers.msInstrList;
 
       const int ntracks = tracks.size();
@@ -398,7 +411,7 @@ void createInstruments(Score *score, QList<MTrack> &tracks)
 
             if (part->nstaves() == 1) {
                   if (track.mtrack->drumTrack()) {
-                        part->staff(0)->setStaffType(0, StaffType::preset(StaffTypes::PERC_DEFAULT));
+                        part->staff(0)->setStaffType(Fraction(0,1), *StaffType::preset(StaffTypes::PERC_DEFAULT));
                         if (!instr) {
                               part->instrument()->setDrumset(smDrumset);
                               }
@@ -406,7 +419,7 @@ void createInstruments(Score *score, QList<MTrack> &tracks)
                   }
             else {
                   if (!instr) {
-                        part->staff(0)->setBarLineSpan(2);
+                        part->staff(0)->setBarLineSpan(true);
                         part->staff(0)->setBracketType(0, BracketType::BRACE);
                         }
                   else {
@@ -418,10 +431,12 @@ void createInstruments(Score *score, QList<MTrack> &tracks)
 
             if (instr) {
                   for (int i = 0; i != part->nstaves(); ++i) {
-                        if (instr->staffTypePreset)
-                              part->staff(i)->setStaffType(0, instr->staffTypePreset);
-                        part->staff(i)->setLines(0, instr->staffLines[i]);
-                        part->staff(i)->setSmall(0, instr->smallStaff[i]);
+                        if (instr->staffTypePreset) {
+                              part->staff(i)->init(instr, nullptr, i);
+                              part->staff(i)->setStaffType(Fraction(0,1), *(instr->staffTypePreset));
+                              }
+//                        part->staff(i)->setLines(0, instr->staffLines[i]);
+//                        part->staff(i)->setSmall(0, instr->smallStaff[i]);
                         part->staff(i)->setDefaultClefType(instr->clefTypes[i]);
                         }
                   }
@@ -437,7 +452,7 @@ void createInstruments(Score *score, QList<MTrack> &tracks)
             if (track.volumes.size() == 1) {
                   for (auto &i: track.volumes) {
                         if (i.first == ReducedFraction(0, 1)) {
-                              part->instrument()->channel(0)->volume = i.second;
+                              part->instrument()->channel(0)->setVolume(i.second);
                               }
                         }
                   }
@@ -448,7 +463,7 @@ void createInstruments(Score *score, QList<MTrack> &tracks)
 
 QString msInstrName(int trackIndex)
       {
-      const auto& opers = preferences.midiImportOperations.data()->trackOpers;
+      const auto& opers = midiImportOperations.data()->trackOpers;
 
       const int instrIndex = opers.msInstrIndex.value(trackIndex);
       const auto &trackInstrList = opers.msInstrList.value(trackIndex);

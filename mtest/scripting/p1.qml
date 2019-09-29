@@ -1,40 +1,29 @@
 import QtQuick 2.0
-import MuseScore 1.0
+import MuseScore 3.0
 
 MuseScore {
       menuPath: "Plugins.p1"
       onRun: {
             openLog("p1.log");
-            logn("test script p1")
+            logn("test script p1: read score elements")
 
-            // check Direction enum
-            log2("     Direction.AUTO: ", Direction.AUTO);
-            log2("     Direction.UP:   ", Direction.UP);
-            log2("     Direction.DOWN: ", Direction.DOWN);
-
-            log2("     Ms.CHORD: ", Ms.CHORD);
-
-            var cursor = curScore.newCursor();
-            cursor.voice = 0;
+            var cursor      = curScore.newCursor();
+            cursor.voice    = 0;
             cursor.staffIdx = 0;
-            log2("filter:", cursor.filter);
-            cursor.filter = -1;
-            log2("filter:", cursor.filter);
+            cursor.filter   = -1;
             cursor.rewind(0);
 
-            while (cursor.segment()) {
-                  var e = cursor.element();
+            while (cursor.segment) {
+                  var e = cursor.element;
                   if (e) {
-                        log2("type is:", e.type);
-                        log2("name is:", e.name);
-                        log2("tick is:", e.tick);
-                        if (e.type == Ms.CHORD) {
-                            log2("  durationType:",  e.durationType);
-                            log2("  beamMode:",      e.get("beam_mode"));
-                            log2("  small:",         e.get("small"));
-                            log2("  stemDirection:", e.get("stem_direction"));
+                        log2("found:", e.name + " (" + e.type + ") at " + e.tick.ticks);
+                        if (e.type == Element.CHORD) {
+//                             log2("  durationType:",  e.durationType); // TODO: some wrapper/string conversion?
+                            log2("  beamMode:",      e.beamMode);
+                            log2("  small:",         e.small);
+                            log2("  stemDirection:", e.stemDirection);
 
-                            log2("  duration:", e.duration);
+                            log2("  duration:", e.duration.str);
 //                            log2("    numerator:",   e.duration.numerator);
 //                            log2("    denominator:", e.duration.denominator);
 //                            log2("    ticks:",       e.duration.ticks);
@@ -75,7 +64,7 @@ MuseScore {
 //                                      }
 //                                }
                             }
-                        if (e.type == Ms.REST) {
+                        if (e.type == Element.REST) {
 //                            logn("  duration:");
 //                            log2("    numerator:",   e.duration.numerator);
 //                            log2("    denominator:", e.duration.denominator);

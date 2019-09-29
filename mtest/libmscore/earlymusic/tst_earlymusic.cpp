@@ -58,7 +58,7 @@ void TestEarlymusic::earlymusic01()
       // go to first chord and verify crossMeasure values
       Measure*    msr   = score->firstMeasure();
       QVERIFY(msr);
-      Segment*    seg   = msr->findSegment(SegmentType::ChordRest, 0);
+      Segment*    seg   = msr->findSegment(SegmentType::ChordRest, Fraction(0,1));
       QVERIFY(seg);
       Ms::Chord*      chord = static_cast<Ms::Chord*>(seg->element(0));
       QVERIFY(chord && chord->type() == ElementType::CHORD);
@@ -72,7 +72,7 @@ void TestEarlymusic::earlymusic01()
 
       // set crossMeasureValue flag ON: score should not change
       MStyle newStyle = score->style();
-      newStyle.set(StyleIdx::crossMeasureValues, true);
+      newStyle.set(Sid::crossMeasureValues, true);
       score->startCmd();
       score->deselectAll();
       score->undo(new ChangeStyle(score, newStyle));

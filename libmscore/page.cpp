@@ -37,10 +37,8 @@ namespace Ms {
 //---------------------------------------------------------
 
 Page::Page(Score* s)
-   : Element(s),
-   _no(0)
+   : Element(s, ElementFlag::NOT_SELECTABLE), _no(0)
       {
-      setFlags(0);
       bspTreeValid = false;
       }
 
@@ -79,17 +77,17 @@ QList<Element*> Page::items(const QPointF& p)
 
 //---------------------------------------------------------
 //   appendSystem
-//--------e-------------------------------------------------
+//---------------------------------------------------------
 
 void Page::appendSystem(System* s)
       {
       s->setParent(this);
-      _systems.append(s);
+      _systems.push_back(s);
       }
 
 //---------------------------------------------------------
 //   draw
-//    bounding rectange fr is relative to page QPointF
+//    bounding rectangle fr is relative to page QPointF
 //---------------------------------------------------------
 
 void Page::draw(QPainter* painter) const
@@ -105,17 +103,17 @@ void Page::draw(QPainter* painter) const
 
       QString s1, s2, s3;
 
-      if (score()->styleB(StyleIdx::showHeader) && (no() || score()->styleB(StyleIdx::headerFirstPage))) {
-            bool odd = (n & 1) || !score()->styleB(StyleIdx::headerOddEven);
+      if (score()->styleB(Sid::showHeader) && (no() || score()->styleB(Sid::headerFirstPage))) {
+            bool odd = (n & 1) || !score()->styleB(Sid::headerOddEven);
             if (odd) {
-                  s1 = score()->styleSt(StyleIdx::oddHeaderL);
-                  s2 = score()->styleSt(StyleIdx::oddHeaderC);
-                  s3 = score()->styleSt(StyleIdx::oddHeaderR);
+                  s1 = score()->styleSt(Sid::oddHeaderL);
+                  s2 = score()->styleSt(Sid::oddHeaderC);
+                  s3 = score()->styleSt(Sid::oddHeaderR);
                   }
             else {
-                  s1 = score()->styleSt(StyleIdx::evenHeaderL);
-                  s2 = score()->styleSt(StyleIdx::evenHeaderC);
-                  s3 = score()->styleSt(StyleIdx::evenHeaderR);
+                  s1 = score()->styleSt(Sid::evenHeaderL);
+                  s2 = score()->styleSt(Sid::evenHeaderC);
+                  s3 = score()->styleSt(Sid::evenHeaderR);
                   }
 
             drawHeaderFooter(painter, 0, s1);
@@ -123,17 +121,17 @@ void Page::draw(QPainter* painter) const
             drawHeaderFooter(painter, 2, s3);
             }
 
-      if (score()->styleB(StyleIdx::showFooter) && (no() || score()->styleB(StyleIdx::footerFirstPage))) {
-            bool odd = (n & 1) || !score()->styleB(StyleIdx::footerOddEven);
+      if (score()->styleB(Sid::showFooter) && (no() || score()->styleB(Sid::footerFirstPage))) {
+            bool odd = (n & 1) || !score()->styleB(Sid::footerOddEven);
             if (odd) {
-                  s1 = score()->styleSt(StyleIdx::oddFooterL);
-                  s2 = score()->styleSt(StyleIdx::oddFooterC);
-                  s3 = score()->styleSt(StyleIdx::oddFooterR);
+                  s1 = score()->styleSt(Sid::oddFooterL);
+                  s2 = score()->styleSt(Sid::oddFooterC);
+                  s3 = score()->styleSt(Sid::oddFooterR);
                   }
             else {
-                  s1 = score()->styleSt(StyleIdx::evenFooterL);
-                  s2 = score()->styleSt(StyleIdx::evenFooterC);
-                  s3 = score()->styleSt(StyleIdx::evenFooterR);
+                  s1 = score()->styleSt(Sid::evenFooterL);
+                  s2 = score()->styleSt(Sid::evenFooterC);
+                  s3 = score()->styleSt(Sid::evenFooterR);
                   }
 
             drawHeaderFooter(painter, 3, s1);
@@ -156,7 +154,7 @@ void Page::drawHeaderFooter(QPainter* p, int area, const QString& ss) const
       if (area < 3) {
             text = score()->headerText();
             if (!text) {
-                  text = new Text(SubStyle::HEADER, score());
+                  text = new Text(score(), Tid::HEADER);
                   text->setLayoutToParentWidth(true);
                   score()->setHeaderText(text);
                   }
@@ -164,7 +162,7 @@ void Page::drawHeaderFooter(QPainter* p, int area, const QString& ss) const
       else {
             text = score()->footerText();
             if (!text) {
-                  text = new Text(SubStyle::FOOTER, score());
+                  text = new Text(score(), Tid::FOOTER);
                   text->setLayoutToParentWidth(true);
                   score()->setFooterText(text);
                   }
@@ -185,8 +183,10 @@ void Page::drawHeaderFooter(QPainter* p, int area, const QString& ss) const
       p->translate(text->pos());
       text->draw(p);
       p->translate(-text->pos());
+      text->setParent(0);
       }
 
+#if 0
 //---------------------------------------------------------
 //   styleChanged
 //---------------------------------------------------------
@@ -200,6 +200,7 @@ void Page::styleChanged()
       if (t)
             t->styleChanged();
       }
+#endif
 
 //---------------------------------------------------------
 //   scanElements
@@ -299,8 +300,8 @@ QString Page::replaceTextMacros(const QString& s) const
       for (int i = 0, n = s.size(); i < n; ++i) {
             QChar c = s[i];
             if (c == '$' && (i < (n-1))) {
-                  QChar c = s[i+1];
-                  switch(c.toLatin1()) {
+                  QChar nc = s[i+1];
+                  switch(nc.toLatin1()) {
                         case 'p': // not on first page 1
                               if (_no) // FALLTHROUGH
                         case 'N': // on page 1 only if there are multiple pages
@@ -375,7 +376,7 @@ QString Page::replaceTextMacros(const QString& s) const
                               break;
                         default:
                               d += '$';
-                              d += c;
+                              d += nc;
                               break;
                         }
                   ++i;
@@ -401,7 +402,7 @@ bool Page::isOdd() const
 
 void Page::write(XmlWriter& xml) const
       {
-      xml.stag("Page");
+      xml.stag(this);
       foreach(System* system, _systems) {
             system->write(xml);
             }
@@ -442,8 +443,8 @@ QList<Element*> Page::elements()
 
 qreal Page::tm() const
       {
-      return ((!score()->styleB(StyleIdx::pageTwosided) || isOdd())
-         ? score()->styleD(StyleIdx::pageOddTopMargin) : score()->styleD(StyleIdx::pageEvenTopMargin)) * DPI;
+      return ((!score()->styleB(Sid::pageTwosided) || isOdd())
+         ? score()->styleD(Sid::pageOddTopMargin) : score()->styleD(Sid::pageEvenTopMargin)) * DPI;
       }
 
 //---------------------------------------------------------
@@ -452,8 +453,8 @@ qreal Page::tm() const
 
 qreal Page::bm() const
       {
-      return ((!score()->styleB(StyleIdx::pageTwosided) || isOdd())
-         ? score()->styleD(StyleIdx::pageOddBottomMargin) : score()->styleD(StyleIdx::pageEvenBottomMargin)) * DPI;
+      return ((!score()->styleB(Sid::pageTwosided) || isOdd())
+         ? score()->styleD(Sid::pageOddBottomMargin) : score()->styleD(Sid::pageEvenBottomMargin)) * DPI;
       }
 
 //---------------------------------------------------------
@@ -462,8 +463,8 @@ qreal Page::bm() const
 
 qreal Page::lm() const
       {
-      return ((!score()->styleB(StyleIdx::pageTwosided) || isOdd())
-         ? score()->styleD(StyleIdx::pageOddLeftMargin) : score()->styleD(StyleIdx::pageEvenLeftMargin)) * DPI;
+      return ((!score()->styleB(Sid::pageTwosided) || isOdd())
+         ? score()->styleD(Sid::pageOddLeftMargin) : score()->styleD(Sid::pageEvenLeftMargin)) * DPI;
       }
 
 //---------------------------------------------------------
@@ -472,7 +473,7 @@ qreal Page::lm() const
 
 qreal Page::rm() const
       {
-      return (score()->styleD(StyleIdx::pageWidth) - score()->styleD(StyleIdx::pagePrintableWidth)) * DPI - lm();
+      return (score()->styleD(Sid::pageWidth) - score()->styleD(Sid::pagePrintableWidth)) * DPI - lm();
       }
 
 //---------------------------------------------------------
@@ -510,9 +511,9 @@ QRectF Page::tbbox()
 //   endTick
 //---------------------------------------------------------
 
-int Page::endTick() const
+Fraction Page::endTick() const
       {
-      return _systems.empty() ? -1 : _systems.back()->measures().back()->endTick();
+      return _systems.empty() ? Fraction(-1,1) : _systems.back()->measures().back()->endTick();
       }
 }
 

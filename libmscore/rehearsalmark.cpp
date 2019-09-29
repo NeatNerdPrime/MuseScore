@@ -13,16 +13,28 @@
 #include "score.h"
 #include "rehearsalmark.h"
 #include "measure.h"
+#include "system.h"
 
 namespace Ms {
+
+//---------------------------------------------------------
+//   rehearsalMarkStyle
+//---------------------------------------------------------
+
+static const ElementStyle rehearsalMarkStyle {
+      { Sid::rehearsalMarkPlacement, Pid::PLACEMENT },
+      { Sid::rehearsalMarkMinDistance, Pid::MIN_DISTANCE },
+      };
 
 //---------------------------------------------------------
 //   RehearsalMark
 //---------------------------------------------------------
 
 RehearsalMark::RehearsalMark(Score* s)
-   : SystemText(SubStyle::REHEARSAL_MARK, s)
+   : TextBase(s, Tid::REHEARSAL_MARK)
       {
+      initElementStyle(&rehearsalMarkStyle);
+      setSystemFlag(true);
       }
 
 //---------------------------------------------------------
@@ -31,49 +43,40 @@ RehearsalMark::RehearsalMark(Score* s)
 
 void RehearsalMark::layout()
       {
-      if (autoplace())
-            setUserOff(QPointF());
-      qreal y;
-      if (placeAbove())
-            y = score()->styleP(StyleIdx::rehearsalMarkPosAbove);
-      else {
-            qreal sh = staff() ? staff()->height() : 0;
-            y = score()->styleP(StyleIdx::rehearsalMarkPosBelow) + sh + lineSpacing();
-            }
-      setPos(QPointF(0.0, y));
-      Text::layout1();
+      TextBase::layout();
 
       Segment* s = segment();
       if (s) {
-            if (!s->rtick()) {
-                  // first CR of measure, decide whether to align to barline
-                  if (!s->prev() && align() & Align::CENTER) {
-                        // measure with no clef / keysig / timesig
-                        rxpos() -= s->x();
-                        }
-                  else if (align() & Align::RIGHT) {
-                        // measure with clef / keysig / timesig, rehearsal mark right aligned
-                        // align left edge of rehearsal to barline if that is further to left
-                        qreal leftX = bbox().x();
-                        qreal barlineX = -s->x();
-                        rxpos() += qMin(leftX, barlineX) + width();
-                        }
-                  }
-            if (autoplace()) {
-                  qreal minDistance = score()->styleP(StyleIdx::rehearsalMarkMinDistance);
-                  Shape s1 = s->measure()->staffShape(staffIdx());
-                  Shape s2 = shape().translated(s->pos() + pos());
-                  if (placeAbove()) {
-                        qreal d = s2.minVerticalDistance(s1);
-                        if (d > -minDistance)
-                              rUserYoffset() = -d - minDistance;
+            if (s->rtick().isZero()) {
+                  // first CR of measure, alignment is hcenter or right (the usual cases)
+                  // align with barline, point just after header, or start of measure depending on context
+
+                  Measure* m = s->measure();
+                  Segment* header = s->prev();  // possibly just a start repeat
+                  qreal measureX = -s->x();
+                  Segment* repeat = m->findSegmentR(SegmentType::StartRepeatBarLine, Fraction(0, 1));
+                  qreal barlineX = repeat ? repeat->x() - s->x() : measureX;
+                  System* sys = m->system();
+                  bool systemFirst = (sys && sys->firstMeasure() == m);
+
+                  if (!header || repeat || !systemFirst) {
+                        // no header, or header with repeat, or header mid-system - align with barline
+                        rxpos() = barlineX;
                         }
                   else {
-                        qreal d = s1.minVerticalDistance(s2);
-                        if (d > -minDistance)
-                              rUserYoffset() = d + minDistance;
+                        // header at start of system
+                        // align to a point just after the header
+                        Element* e = header->element(track());      // TODO: firstVisibleStaff
+                        qreal w = e ? e->width() : header->width();
+                        rxpos() = header->x() + w - s->x();
+
+                        // special case for right aligned rehearsal marks at start of system
+                        // left align with start of measure if that is further left
+                        if (align() & Align::RIGHT)
+                              rxpos() = qMin(rpos().x(), measureX + width());
                         }
                   }
+            autoplaceSegmentElement();
             }
       }
 
@@ -81,16 +84,27 @@ void RehearsalMark::layout()
 //   propertyDefault
 //---------------------------------------------------------
 
-QVariant RehearsalMark::propertyDefault(P_ID id) const
+QVariant RehearsalMark::propertyDefault(Pid id) const
       {
       switch (id) {
-            case P_ID::SUB_STYLE:
-                  return int(SubStyle::REHEARSAL_MARK);
-            case P_ID::PLACEMENT:
-                  return score()->styleV(StyleIdx::rehearsalMarkPlacement);
+            case Pid::SUB_STYLE:
+                  return int(Tid::REHEARSAL_MARK);
+            case Pid::PLACEMENT:
+                  return score()->styleV(Sid::rehearsalMarkPlacement);
             default:
-                  return Text::propertyDefault(id);
+                  return TextBase::propertyDefault(id);
             }
+      }
+
+//---------------------------------------------------------
+//   getPropertyStyle
+//---------------------------------------------------------
+
+Sid RehearsalMark::getPropertyStyle(Pid pid) const
+      {
+      if (pid == Pid::OFFSET)
+            return placeAbove() ? Sid::rehearsalMarkPosAbove : Sid::rehearsalMarkPosBelow;
+      return TextBase::getPropertyStyle(pid);
       }
 
 } // namespace Ms

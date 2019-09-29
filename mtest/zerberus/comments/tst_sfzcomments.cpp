@@ -2,7 +2,6 @@
 //=============================================================================
 //  MuseScore
 //  Music Composition & Notation
-//  $Id:$
 //
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License version 2
@@ -50,7 +49,7 @@ void TestSfzComments::initTestCase()
 void TestSfzComments::testcomments()
       {
       Zerberus* synth = new Zerberus();
-      Ms::preferences.mySoundfontsPath += ";" + root;
+      preferences.setPreference(PREF_APP_PATHS_MYSOUNDFONTS, root);
       synth->loadInstrument("commentTest.sfz");
 
       QCOMPARE(synth->instrument(0)->zones().size(), (size_t) 3);

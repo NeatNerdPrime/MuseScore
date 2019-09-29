@@ -7,7 +7,7 @@
 #include "libmscore/measure.h"
 #include "libmscore/harmony.h"
 #include "midi/midifile.h"
-#include "mscore/preferences.h"
+#include "importmidi_operations.h"
 
 
 // From XF Format Specifications V 2.01 (January 13, 1999, YAMAHA CORPORATION)
@@ -149,7 +149,7 @@ QString findChordName(
 
 void findChordNames(const std::multimap<int, MTrack> &tracks)
       {
-      auto &data = *preferences.midiImportOperations.data();
+      auto &data = *midiImportOperations.data();
 
       for (const auto &track: tracks) {
             for (const auto &event: track.second.mtrack->events()) {
@@ -167,7 +167,7 @@ void findChordNames(const std::multimap<int, MTrack> &tracks)
 
 void setChordNames(QList<MTrack> &tracks)
       {
-      const auto &data = *preferences.midiImportOperations.data();
+      const auto &data = *midiImportOperations.data();
       if (data.chordNames.empty() || !data.trackOpers.showChordNames.value())
             return;
 
@@ -192,9 +192,8 @@ void setChordNames(QList<MTrack> &tracks)
                   const ReducedFraction &onTime = chord.first;
                   usedTimes.insert(onTime);
 
-                  Measure* measure = score->tick2measure(onTime.ticks());
-                  Segment* seg = measure->getSegment(SegmentType::ChordRest,
-                                                     onTime.ticks());
+                  Measure* measure = score->tick2measure(onTime.fraction());
+                  Segment* seg = measure->getSegment(SegmentType::ChordRest, onTime.fraction());
                   const int t = staff->idx() * VOICES;
 
                   Harmony* h = new Harmony(score);

@@ -31,11 +31,11 @@ InspectorBarLine::InspectorBarLine(QWidget* parent)
             b.type->addItem(qApp->translate("Palette", i.userName), int(i.type));
 
       const std::vector<InspectorItem> il = {
-            { P_ID::LEADING_SPACE,     1, s.leadingSpace,  s.resetLeadingSpace  },
-            { P_ID::BARLINE_TYPE,      0, b.type,     b.resetType     },
-            { P_ID::BARLINE_SPAN,      0, b.span,     b.resetSpan     },
-            { P_ID::BARLINE_SPAN_FROM, 0, b.spanFrom, b.resetSpanFrom },
-            { P_ID::BARLINE_SPAN_TO,   0, b.spanTo,   b.resetSpanTo   },
+            { Pid::LEADING_SPACE,     1, s.leadingSpace,  s.resetLeadingSpace  },
+            { Pid::BARLINE_TYPE,      0, b.type,     b.resetType     },
+            { Pid::BARLINE_SPAN,      0, b.span,     b.resetSpan     },
+            { Pid::BARLINE_SPAN_FROM, 0, b.spanFrom, b.resetSpanFrom },
+            { Pid::BARLINE_SPAN_TO,   0, b.spanTo,   b.resetSpanTo   },
             };
       const std::vector<InspectorPanel> ppList = {
             { s.title, s.panel },
@@ -65,15 +65,29 @@ InspectorBarLine::InspectorBarLine(QWidget* parent)
 
 void InspectorBarLine::setAsStaffDefault()
       {
-      BarLine* bl = toBarLine(inspector->element());
-      Staff* staff = bl->staff();
-      Score* score = bl->score();
+      BarLine* ebl = toBarLine(inspector->element());
+      QVariant span = ebl->getProperty(Pid::BARLINE_SPAN);
+      QVariant spanFrom = ebl->getProperty(Pid::BARLINE_SPAN_FROM);
+      QVariant spanTo = ebl->getProperty(Pid::BARLINE_SPAN_TO);
+
+      std::set<Staff*> staffList;
+
+      Score* score = ebl->score();
       score->startCmd();
-      staff->undoChangeProperty(P_ID::STAFF_BARLINE_SPAN,      bl->getProperty(P_ID::BARLINE_SPAN));
-      staff->undoChangeProperty(P_ID::STAFF_BARLINE_SPAN_FROM, bl->getProperty(P_ID::BARLINE_SPAN_FROM));
-      staff->undoChangeProperty(P_ID::STAFF_BARLINE_SPAN_TO,   bl->getProperty(P_ID::BARLINE_SPAN_TO));
-      if (bl->barLineType() == BarLineType::NORMAL)
-            bl->setGenerated(true);
+      for (Element* el : *inspector->el()) {
+            if (!el || !el->isBarLine())
+                  continue;
+            BarLine* bl = toBarLine(el);
+            Staff* staff = bl->staff();
+            if (std::find(staffList.begin(), staffList.end(), staff) == staffList.end()) {
+                  staff->undoChangeProperty(Pid::STAFF_BARLINE_SPAN,      span);
+                  staff->undoChangeProperty(Pid::STAFF_BARLINE_SPAN_FROM, spanFrom);
+                  staff->undoChangeProperty(Pid::STAFF_BARLINE_SPAN_TO,   spanTo);
+                  staffList.insert(staff);
+                  }
+            if (bl->barLineType() == BarLineType::NORMAL)
+                  bl->setGenerated(true);
+            }
       score->endCmd();
       }
 
@@ -91,16 +105,16 @@ void InspectorBarLine::setElement()
       // enable / disable individual type combo items according to score and selected bar line status
       bool bMultiStaff  = bl->score()->nstaves() > 1;
       BarLineType blt   = bl->barLineType();
-//      bool isRepeat     = blt & (BarLineType::START_REPEAT | BarLineType::END_REPEAT | BarLineType::END_START_REPEAT);
-      bool isRepeat     = blt & (BarLineType::START_REPEAT | BarLineType::END_REPEAT);
+      bool isRepeat     = blt & (BarLineType::START_REPEAT | BarLineType::END_REPEAT | BarLineType::END_START_REPEAT);
+//      bool isRepeat     = blt & (BarLineType::START_REPEAT | BarLineType::END_REPEAT);
 
       const QStandardItemModel* model = qobject_cast<const QStandardItemModel*>(b.type->model());
       int i = 0;
       for (auto& k : BarLine::barLineTable) {
             QStandardItem* item = model->item(i);
             // if combo item is repeat type, should be disabled for multi-staff scores
-//            if (k.type & (BarLineType::START_REPEAT | BarLineType::END_REPEAT | BarLineType::END_START_REPEAT)) {
-            if (k.type & (BarLineType::START_REPEAT | BarLineType::END_REPEAT)) {
+            if (k.type & (BarLineType::START_REPEAT | BarLineType::END_REPEAT | BarLineType::END_START_REPEAT)) {
+//            if (k.type & (BarLineType::START_REPEAT | BarLineType::END_REPEAT)) {
                   // disable / enable
                   item->setFlags(bMultiStaff ?
                         item->flags() & ~(Qt::ItemIsSelectable|Qt::ItemIsEnabled) :
@@ -127,13 +141,18 @@ void InspectorBarLine::setElement()
 
 void InspectorBarLine::presetDefaultClicked()
       {
-      BarLine* bl = toBarLine(inspector->element());
-      Score* score = bl->score();
+      Score* score = inspector->element()->score();
       score->startCmd();
 
-      bl->undoResetProperty(P_ID::BARLINE_SPAN);
-      bl->undoResetProperty(P_ID::BARLINE_SPAN_FROM);
-      bl->undoResetProperty(P_ID::BARLINE_SPAN_TO);
+      BarLine* bl;
+      for (Element* el : *inspector->el()) {
+            if (el->isBarLine()) {
+                  bl = toBarLine(el);
+                  bl->undoResetProperty(Pid::BARLINE_SPAN);
+                  bl->undoResetProperty(Pid::BARLINE_SPAN_FROM);
+                  bl->undoResetProperty(Pid::BARLINE_SPAN_TO);
+                  }
+            }
 
       score->endCmd();
       }
@@ -144,13 +163,18 @@ void InspectorBarLine::presetDefaultClicked()
 
 void InspectorBarLine::presetTick1Clicked()
       {
-      BarLine* bl = toBarLine(inspector->element());
-      Score* score = bl->score();
+      Score* score = inspector->element()->score();
       score->startCmd();
 
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN, false);
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN_FROM, BARLINE_SPAN_TICK1_FROM);
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN_TO,   BARLINE_SPAN_TICK1_TO);
+      BarLine* bl;
+      for (Element* el : *inspector->el()) {
+            if (el->isBarLine()) {
+                  bl = toBarLine(el);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN, false);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN_FROM, BARLINE_SPAN_TICK1_FROM);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN_TO,   BARLINE_SPAN_TICK1_TO);
+                  }
+            }
 
       score->endCmd();
       }
@@ -161,13 +185,18 @@ void InspectorBarLine::presetTick1Clicked()
 
 void InspectorBarLine::presetTick2Clicked()
       {
-      BarLine* bl = toBarLine(inspector->element());
-      Score* score = bl->score();
+      Score* score = inspector->element()->score();
       score->startCmd();
 
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN, false);
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN_FROM, BARLINE_SPAN_TICK2_FROM);
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN_TO,   BARLINE_SPAN_TICK2_TO);
+      BarLine* bl;
+      for (Element* el : *inspector->el()) {
+            if (el->isBarLine()) {
+                  bl = toBarLine(el);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN, false);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN_FROM, BARLINE_SPAN_TICK2_FROM);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN_TO,   BARLINE_SPAN_TICK2_TO);
+                  }
+            }
 
       score->endCmd();
       }
@@ -178,15 +207,19 @@ void InspectorBarLine::presetTick2Clicked()
 
 void InspectorBarLine::presetShort1Clicked()
       {
-      BarLine* bl = toBarLine(inspector->element());
-      Score* score = bl->score();
+      Score* score = inspector->element()->score();
       score->startCmd();
 
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN, false);
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN_FROM, BARLINE_SPAN_SHORT1_FROM);
-      int shortDelta = bl->staff() ? (bl->staff()->lines(bl->tick()) - 5) * 2 : 0;
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN_TO,   BARLINE_SPAN_SHORT1_TO + shortDelta);
-
+      BarLine* bl;
+      for (Element* el : *inspector->el()) {
+            if (el->isBarLine()) {
+                  bl = toBarLine(el);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN, false);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN_FROM, BARLINE_SPAN_SHORT1_FROM);
+                  int shortDelta = bl->staff() ? (bl->staff()->lines(bl->tick()) - 5) * 2 : 0;
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN_TO,   BARLINE_SPAN_SHORT1_TO + shortDelta);
+                  }
+            }
       score->endCmd();
       }
 
@@ -196,15 +229,19 @@ void InspectorBarLine::presetShort1Clicked()
 
 void InspectorBarLine::presetShort2Clicked()
       {
-      BarLine* bl = toBarLine(inspector->element());
-      Score* score = bl->score();
+      Score* score = inspector->element()->score();
       score->startCmd();
 
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN, false);
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN_FROM, BARLINE_SPAN_SHORT2_FROM);
-      int shortDelta = bl->staff() ? (bl->staff()->lines(bl->tick()) - 5) * 2 : 0;
-      bl->undoChangeProperty(P_ID::BARLINE_SPAN_TO,   BARLINE_SPAN_SHORT2_TO + shortDelta);
-
+      BarLine* bl;
+      for (Element* el : *inspector->el()) {
+            if (el->isBarLine()) {
+                  bl = toBarLine(el);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN, false);
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN_FROM, BARLINE_SPAN_SHORT2_FROM);
+                  int shortDelta = bl->staff() ? (bl->staff()->lines(bl->tick()) - 5) * 2 : 0;
+                  bl->undoChangeProperty(Pid::BARLINE_SPAN_TO,   BARLINE_SPAN_SHORT2_TO + shortDelta);
+                  }
+            }
       score->endCmd();
       }
 
@@ -243,7 +280,7 @@ void InspectorBarLine::manageSpanData()
       b.spanTo->setMinimum(min);
       b.spanTo->setMaximum(max);
 
-      // determin MAX for SPAN
+      // determine MAX for SPAN
       max = bl->score()->nstaves() - bl->staffIdx();
       b.span->setMaximum(max);
 #endif

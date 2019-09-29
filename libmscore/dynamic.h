@@ -28,10 +28,8 @@ class Segment;
 //   @P range  enum (Dynamic.STAFF, .PART, .SYSTEM)
 //-----------------------------------------------------------------------------
 
-class Dynamic : public Text {
-      Q_GADGET
-      Q_PROPERTY(Ms::Dynamic::Range range  READ dynRange  WRITE undoSetDynRange)
-
+class Dynamic final : public TextBase {
+   Q_GADGET
    public:
       enum class Type : char {
             OTHER,
@@ -69,6 +67,17 @@ class Dynamic : public Text {
             STAFF, PART, SYSTEM
             };
 
+      enum class Speed : char {
+            SLOW, NORMAL, FAST
+            };
+
+      struct ChangeSpeedItem {
+            Speed speed;
+            const char* name;
+            };
+
+      Q_ENUM(Type);
+
    private:
       Type _dynamicType;
 
@@ -76,22 +85,27 @@ class Dynamic : public Text {
       int _velocity;     // associated midi velocity 0-127
       Range _dynRange;   // STAFF, PART, SYSTEM
 
+      int _changeInVelocity         { 128 };
+      Speed _velChangeSpeed         { Speed::NORMAL };
+
       virtual QRectF drag(EditData&) override;
+      virtual Sid getPropertyStyle(Pid) const override;
 
    public:
       Dynamic(Score*);
       Dynamic(const Dynamic&);
       virtual Dynamic* clone() const override     { return new Dynamic(*this); }
-      virtual ElementType type() const override { return ElementType::DYNAMIC; }
+      virtual ElementType type() const override   { return ElementType::DYNAMIC; }
       Segment* segment() const                    { return (Segment*)parent(); }
       Measure* measure() const                    { return (Measure*)parent()->parent(); }
 
-      void setDynamicType(Type val)      { _dynamicType = val;   }
+      void setDynamicType(Type val)               { _dynamicType = val;   }
       void setDynamicType(const QString&);
-      QString dynamicTypeName() const;
-      Type dynamicType() const            { return _dynamicType; }
-      virtual int subtype() const         { return (int) _dynamicType; }
-      virtual QString subtypeName() const { return dynamicTypeName(); }
+      static QString dynamicTypeName(Dynamic::Type type);
+      QString dynamicTypeName() const { return dynamicTypeName(_dynamicType); }
+      Type dynamicType() const                     { return _dynamicType; }
+      virtual int subtype() const override         { return (int) _dynamicType; }
+      virtual QString subtypeName() const override { return dynamicTypeName(); }
 
       virtual void layout() override;
       virtual void write(XmlWriter& xml) const override;
@@ -108,12 +122,26 @@ class Dynamic : public Text {
       void setDynRange(Range t) { _dynRange = t;    }
       void undoSetDynRange(Range t);
 
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool     setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID id) const override;
+      int changeInVelocity() const;
+      void setChangeInVelocity(int val);
+      Fraction velocityChangeLength() const;
+
+      Speed velChangeSpeed() const  { return _velChangeSpeed; }
+      void setVelChangeSpeed(Speed val) { _velChangeSpeed = val; }
+      static QString speedToName(Speed speed);
+      static Speed nameToSpeed(QString name);
+
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool     setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid id) const override;
+      virtual Pid propertyId(const QStringRef& xmlName) const override;
+      virtual QString propertyUserValue(Pid) const override;
 
       virtual QString accessibleInfo() const override;
+      virtual QString screenReaderInfo() const override;
       void doAutoplace();
+
+      static const std::vector<ChangeSpeedItem> changeSpeedTable;
       };
 
 }     // namespace Ms

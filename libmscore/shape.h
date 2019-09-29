@@ -22,21 +22,54 @@ namespace Ms {
 class Segment;
 
 //---------------------------------------------------------
+//   ShapeElement
+//---------------------------------------------------------
+
+struct ShapeElement : public QRectF {
+#ifndef NDEBUG
+      const char* text;
+      void dump() const;
+      ShapeElement(const QRectF& f, const char* t = 0) : QRectF(f), text(t) {}
+#else
+      ShapeElement(const QRectF& f) : QRectF(f) {}
+#endif
+      };
+
+//---------------------------------------------------------
 //   Shape
 //---------------------------------------------------------
 
-class Shape : std::vector<QRectF> {
+class Shape : public std::vector<ShapeElement> {
+// class Shape : std::vector<ShapeElement> {
    public:
-      Shape() {}
-      Shape(const QRectF& r) { add(r); }
-      void draw(QPainter*) const;
+      enum HorizontalSpacingType {
+            SPACING_GENERAL = 0,
+            SPACING_LYRICS,
+            SPACING_HARMONY,
+            };
 
+      Shape() {}
+#ifndef NDEBUG
+      Shape(const QRectF& r, const char* s = 0) { add(r, s); }
+#else
+      Shape(const QRectF& r) { add(r); }
+#endif
       void add(const Shape& s)            { insert(end(), s.begin(), s.end()); }
+#ifndef NDEBUG
+      void add(const QRectF& r, const char* t = 0);
+#else
       void add(const QRectF& r)           { push_back(r); }
+#endif
       void remove(const QRectF&);
       void remove(const Shape&);
+
+      void addHorizontalSpacing(HorizontalSpacingType type, qreal left, qreal right);
+
       void translate(const QPointF&);
+      void translateX(qreal);
+      void translateY(qreal);
       Shape translated(const QPointF&) const;
+
       qreal minHorizontalDistance(const Shape&) const;
       qreal minVerticalDistance(const Shape&) const;
       qreal topDistance(const QPointF&) const;
@@ -46,15 +79,16 @@ class Shape : std::vector<QRectF> {
       qreal top() const;
       qreal bottom() const;
 
-      int size() const   { return std::vector<QRectF>::size(); }
-      bool empty() const { return std::vector<QRectF>::empty(); }
-      void clear()       { std::vector<QRectF>::clear();       }
+      size_t size() const { return std::vector<ShapeElement>::size();  }
+      bool empty() const  { return std::vector<ShapeElement>::empty(); }
+      void clear()        { std::vector<ShapeElement>::clear();        }
 
       bool contains(const QPointF&) const;
       bool intersects(const QRectF& rr) const;
-      void paint(QPainter&);
+      bool intersects(const Shape&) const;
+      void paint(QPainter&) const;
 
-#ifdef DEBUG_SHAPES
+#ifndef NDEBUG
       void dump(const char*) const;
 #endif
       };

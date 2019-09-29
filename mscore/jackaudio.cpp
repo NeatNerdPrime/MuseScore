@@ -1,7 +1,6 @@
 //=============================================================================
 //  MusE Score
 //  Linux Music Score Editor
-//  $Id: jackaudio.cpp 5660 2012-05-22 14:17:39Z wschweer $
 //
 //  Copyright (C) 2002-2010 Werner Schweer and others
 //
@@ -17,6 +16,13 @@
 //  along with this program; if not, write to the Free Software
 //  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 //=============================================================================
+
+#if (defined (_MSCVER) || defined (_MSC_VER))
+// Include stdint.h and #define _STDINT_H to prevent <systemdeps.h> from redefining types
+// #undef UNICODE to force LoadLibrary to use the char-based implementation instead of the wchar_t one.
+#include <stdint.h>
+#define _STDINT_H 1
+#endif
 
 #include "jackaudio.h"
 #include "musescore.h"
@@ -66,13 +72,13 @@ JackAudio::~JackAudio()
 
 void JackAudio::updateOutPortCount(int maxport)
       {
-      if (!preferences.useJackMidi || maxport == midiOutputPorts.size())
+      if (!preferences.getBool(PREF_IO_JACK_USEJACKMIDI) || maxport == midiOutputPorts.size())
             return;
       if (MScore::debugMode)
             qDebug()<<"JACK number of ports:"<<midiOutputPorts.size()<<", change to:"<<maxport;
 
-      bool oldremember = preferences.rememberLastConnections;
-      preferences.rememberLastConnections = true;
+      bool oldremember = preferences.getBool(PREF_IO_JACK_REMEMBERLASTCONNECTIONS);
+      preferences.setPreference(PREF_IO_JACK_REMEMBERLASTCONNECTIONS, true);
 
       if (maxport > midiOutputPorts.size()) {
             for (int i = midiOutputPorts.size(); i < maxport; ++i)
@@ -86,7 +92,8 @@ void JackAudio::updateOutPortCount(int maxport)
                   midiOutputPorts.removeAt(i);
                   }
             }
-      preferences.rememberLastConnections = oldremember;
+      preferences.setPreference(PREF_IO_JACK_REMEMBERLASTCONNECTIONS, oldremember);
+
       }
 
 //---------------------------------------------------------
@@ -133,15 +140,16 @@ void JackAudio::unregisterPort(jack_port_t* port)
 
 QList<QString> JackAudio::inputPorts()
       {
-      const char** ports = jack_get_ports(client, 0, 0, 0);
+      const char** prts = jack_get_ports(client, 0, 0, 0);
       QList<QString> clientList;
-      for (const char** p = ports; p && *p; ++p) {
+      for (const char** p = prts; p && *p; ++p) {
             jack_port_t* port = jack_port_by_name(client, *p);
             int flags = jack_port_flags(port);
             if (!(flags & JackPortIsInput))
                   continue;
             char buffer[128];
-            strncpy(buffer, *p, 128);
+            strncpy(buffer, *p, sizeof(buffer) - 1);
+            buffer[sizeof(buffer) - 1] = 0;
             if (strncmp(buffer, "Mscore", 6) == 0)
                   continue;
             clientList.append(QString(buffer));
@@ -208,9 +216,9 @@ void JackAudio::disconnect(void* src, void* dst)
 
 bool JackAudio::start(bool hotPlug)
       {
-      bool oldremember = preferences.rememberLastConnections;
+      bool oldremember = preferences.getBool(PREF_IO_JACK_REMEMBERLASTCONNECTIONS);
       if (hotPlug)
-            preferences.rememberLastConnections = true;
+            preferences.setPreference(PREF_IO_JACK_REMEMBERLASTCONNECTIONS, true);
 
       if (jack_activate(client)) {
             qDebug("JACK: cannot activate client");
@@ -221,13 +229,13 @@ bool JackAudio::start(bool hotPlug)
          connections to be made to clients that aren't
          running.
        */
-      if (preferences.useJackAudio)
+      if (preferences.getBool(PREF_IO_JACK_USEJACKAUDIO))
             restoreAudioConnections();
-      if (preferences.useJackMidi)
+      if (preferences.getBool(PREF_IO_JACK_USEJACKMIDI))
             restoreMidiConnections();
 
       if (hotPlug)
-            preferences.rememberLastConnections = oldremember;
+            preferences.setPreference(PREF_IO_JACK_REMEMBERLASTCONNECTIONS, oldremember);
       return true;
       }
 
@@ -238,9 +246,9 @@ bool JackAudio::start(bool hotPlug)
 
 bool JackAudio::stop()
       {
-      if (preferences.useJackMidi)
+      if (preferences.getBool(PREF_IO_JACK_USEJACKMIDI))
             rememberMidiConnections();
-      if (preferences.useJackAudio)
+      if (preferences.getBool(PREF_IO_JACK_USEJACKAUDIO))
             rememberAudioConnections();
 
       if (jack_deactivate(client)) {
@@ -313,11 +321,11 @@ void JackAudio::timebase(jack_transport_state_t state, jack_nframes_t /*nframes*
                   audio->stopTransport();
             }
       else if (audio->seq->isRunning()) {
-            if (!audio->seq->score()->repeatList() || !audio->seq->score()->sigmap())
+            if (!audio->seq->score()->masterScore())
                   return;
 
             pos->valid = JackPositionBBT;
-            int curTick = audio->seq->score()->repeatList()->utick2tick(audio->seq->getCurTick());
+            int curTick = audio->seq->score()->repeatList().utick2tick(audio->seq->getCurTick());
             int bar,beat,tick;
             audio->seq->score()->sigmap()->tickValues(curTick, &bar, &beat, &tick);
             // Providing the final tempo
@@ -351,7 +359,7 @@ int JackAudio::processAudio(jack_nframes_t frames, void* p)
 
       float* l;
       float* r;
-      if (preferences.useJackAudio && audio->ports.size() == 2) {
+      if (preferences.getBool(PREF_IO_JACK_USEJACKAUDIO) && audio->ports.size() == 2) {
             l = (float*)jack_port_get_buffer(audio->ports[0], frames);
             r = (float*)jack_port_get_buffer(audio->ports[1], frames);
             }
@@ -359,7 +367,7 @@ int JackAudio::processAudio(jack_nframes_t frames, void* p)
             l = 0;
             r = 0;
             }
-      if (preferences.useJackMidi) {
+      if (preferences.getBool(PREF_IO_JACK_USEJACKMIDI)) {
             foreach(jack_port_t* port, audio->midiOutputPorts) {
                   void* portBuffer = jack_port_get_buffer(port, frames);
                   jack_midi_clear_buffer(portBuffer);
@@ -370,10 +378,9 @@ int JackAudio::processAudio(jack_nframes_t frames, void* p)
                         jack_nframes_t n = jack_midi_get_event_count(portBuffer);
                         for (jack_nframes_t i = 0; i < n; ++i) {
                               jack_midi_event_t event;
-                              int r = jack_midi_event_get(&event, portBuffer, i);
-                              if (r != 0)
+                              if (jack_midi_event_get(&event, portBuffer, i) != 0)
                                     continue;
-                              int nn = event.size;
+                              size_t nn = event.size;
                               int type = event.buffer[0];
                               if (nn && (type == ME_CLOCK || type == ME_SENSE))
                                     continue;
@@ -396,7 +403,14 @@ int JackAudio::processAudio(jack_nframes_t frames, void* p)
                   }
             }
       if (l && r) {
-            float buffer[frames * 2];
+#if (!defined (_MSCVER) && !defined (_MSC_VER))
+         float buffer[frames * 2];
+#else
+         // MSVC does not support VLA. Replace with std::vector. If profiling determines that the
+         //    heap allocation is slow, an optimization might be used.
+         std::vector<float> vBuffer(frames * 2);
+         float* buffer = vBuffer.data();
+#endif
             audio->seq->process((unsigned)frames, buffer);
             float* sp = buffer;
             for (unsigned i = 0; i < frames; ++i) {
@@ -406,7 +420,14 @@ int JackAudio::processAudio(jack_nframes_t frames, void* p)
             }
       else {
             // JACK MIDI only
-            float buffer[frames * 2];
+#if (!defined (_MSCVER) && !defined (_MSC_VER))
+         float buffer[frames * 2];
+#else
+            // MSVC does not support VLA. Replace with std::vector. If profiling determines that the
+            //    heap allocation is slow, an optimization might be used.
+         std::vector<float> vBuffer(frames * 2);
+         float* buffer = vBuffer.data();
+#endif
             audio->seq->process((unsigned)frames, buffer);
             }
       return 0;
@@ -464,7 +485,7 @@ bool JackAudio::init(bool hot)
       jack_set_port_registration_callback(client, registration_callback, this);
       jack_set_graph_order_callback(client, graph_callback, this);
       jack_set_freewheel_callback (client, freewheel_callback, this);
-      if (preferences.jackTimebaseMaster)
+      if (preferences.getBool(PREF_IO_JACK_TIMEBASEMASTER))
             setTimebaseCallback();
       if (jack_set_buffer_size_callback (client, bufferSizeCallback, this) != 0)
             qDebug("Can not set bufferSizeCallback");
@@ -472,12 +493,12 @@ bool JackAudio::init(bool hot)
 
       MScore::sampleRate = sampleRate();
       // register mscore left/right output ports
-      if (preferences.useJackAudio) {
+      if (preferences.getBool(PREF_IO_JACK_USEJACKAUDIO)) {
             registerPort("left", false, false);
             registerPort("right", false, false);
             }
 
-      if (preferences.useJackMidi) {
+      if (preferences.getBool(PREF_IO_JACK_USEJACKMIDI)) {
             registerPort(QString("mscore-midi-1"), false, true);
             registerPort(QString("mscore-midiin-1"), true, true);
             }
@@ -490,7 +511,7 @@ bool JackAudio::init(bool hot)
 
 void JackAudio::startTransport()
       {
-      if (preferences.useJackTransport)
+      if (preferences.getBool(PREF_IO_JACK_USEJACKTRANSPORT))
             jack_transport_start(client);
       else
             fakeState = Transport::PLAY;
@@ -502,7 +523,7 @@ void JackAudio::startTransport()
 
 void JackAudio::stopTransport()
       {
-      if (preferences.useJackTransport)
+      if (preferences.getBool(PREF_IO_JACK_USEJACKTRANSPORT))
             jack_transport_stop(client);
       else
             fakeState = Transport::STOP;
@@ -514,7 +535,7 @@ void JackAudio::stopTransport()
 
 Transport JackAudio::getState()
       {
-      if (!preferences.useJackTransport)
+      if (!preferences.getBool(PREF_IO_JACK_USEJACKTRANSPORT))
             return fakeState;
       int transportState = jack_transport_query(client, NULL);
       switch (transportState) {
@@ -533,7 +554,7 @@ Transport JackAudio::getState()
 
 void JackAudio::putEvent(const NPlayEvent& e, unsigned framePos)
       {
-      if (!preferences.useJackMidi)
+      if (!preferences.getBool(PREF_IO_JACK_USEJACKMIDI))
             return;
 
       int portIdx = seq->score()->midiPort(e.channel());
@@ -582,7 +603,7 @@ void JackAudio::putEvent(const NPlayEvent& e, unsigned framePos)
                         p[1] = less128(e.dataB());
                         break;
                         }
-                  //Fallback
+                  //fall through
             case ME_PITCHBEND:
                   {
                   unsigned char* p = jack_midi_event_reserve(pb, framePos, 3);
@@ -668,7 +689,7 @@ void JackAudio::checkTransportSeek(int cur_frame, int nframes, bool inCountIn)
       jack_position_t pos;
       jack_transport_query(client, &pos);
 
-      if (preferences.useJackTransport) {
+      if (preferences.getBool(PREF_IO_JACK_USEJACKTRANSPORT)) {
             if (mscore->getPlayPanel() && mscore->getPlayPanel()->isTempoSliderPressed())
                   return;
             int cur_utick = seq->score()->utime2utick((qreal)cur_frame / MScore::sampleRate);
@@ -683,7 +704,7 @@ void JackAudio::checkTransportSeek(int cur_frame, int nframes, bool inCountIn)
             }
 
       // Tempo
-      if (!preferences.jackTimebaseMaster  && (pos.valid & JackPositionBBT)) {
+      if (!preferences.getBool(PREF_IO_JACK_TIMEBASEMASTER)  && (pos.valid & JackPositionBBT)) {
             if (!seq->score()->tempomap())
                   return;
 
@@ -726,7 +747,7 @@ void JackAudio::setTimebaseCallback()
                   qDebug("Registered as JACK Timebase Master.");
             }
       else {
-            preferences.jackTimebaseMaster = false;
+            preferences.setPreference(PREF_IO_JACK_TIMEBASEMASTER, false);
             qDebug("Unable to take over JACK Timebase, error code: %i",errCode);
             }
       }
@@ -750,7 +771,7 @@ void JackAudio::releaseTimebaseCallback()
 
 void JackAudio::rememberAudioConnections()
       {
-      if (!preferences.rememberLastConnections)
+      if (!preferences.getBool(PREF_IO_JACK_REMEMBERLASTCONNECTIONS))
             return;
       if (MScore::debugMode)
             qDebug("Saving audio connections...");
@@ -793,7 +814,7 @@ void JackAudio::restoreAudioConnections()
       int n = settings.value(QString("audio-0-connections"), 0).toInt() + settings.value(QString("audio-1-connections"), 0).toInt();
 
       // Connecting to system ports
-      if (!preferences.rememberLastConnections || n == 0) {
+      if (!preferences.getBool(PREF_IO_JACK_REMEMBERLASTCONNECTIONS) || n == 0) {
             if (MScore::debugMode)
                   qDebug("Connecting to system ports...");
             for (auto p : ports) {
@@ -810,9 +831,9 @@ void JackAudio::restoreAudioConnections()
       // Connecting to saved ports
       int nPorts = ports.size();
       for (int i = 0; i < nPorts; ++i) {
-            int n = settings.value(QString("audio-%1-connections").arg(i), 0).toInt();
+            int j = settings.value(QString("audio-%1-connections").arg(i), 0).toInt();
             const char* src = jack_port_name(ports[i]);
-            for (int k = 0; k < n; ++k) {
+            for (int k = 0; k < j; ++k) {
                   QString dst = settings.value(QString("audio-%1-%2").arg(i).arg(k), "").toString();
                   if (!dst.isEmpty()) {
                         if (jack_port_connected_to(ports[i], qPrintable(dst)))
@@ -830,7 +851,7 @@ void JackAudio::restoreAudioConnections()
 
 void JackAudio::rememberMidiConnections()
       {
-      if (!preferences.rememberLastConnections)
+      if (!preferences.getBool(PREF_IO_JACK_REMEMBERLASTCONNECTIONS))
             return;
       if (MScore::debugMode)
             qDebug("Saving midi connections...");
@@ -877,7 +898,7 @@ void JackAudio::rememberMidiConnections()
 
 void JackAudio::restoreMidiConnections()
       {
-      if (!preferences.rememberLastConnections)
+      if (!preferences.getBool(PREF_IO_JACK_REMEMBERLASTCONNECTIONS))
             return;
       if (MScore::debugMode)
             qDebug("Restoring midi connections...");
@@ -917,8 +938,8 @@ void JackAudio::restoreMidiConnections()
 
 void JackAudio::hotPlug()
       {
-      bool oldremember = preferences.rememberLastConnections;
-      preferences.rememberLastConnections = true;
+      bool oldremember = preferences.getBool(PREF_IO_JACK_REMEMBERLASTCONNECTIONS);
+      preferences.setPreference(PREF_IO_JACK_REMEMBERLASTCONNECTIONS, true);
       // Remember connections before calling jack_deactivate() - it disconnects all ports
       rememberMidiConnections();
       if (ports.size() != 0)
@@ -929,13 +950,13 @@ void JackAudio::hotPlug()
             qDebug("cannot deactivate client");
 
       // Audio connections
-      if (preferences.useJackAudio) {
+      if (preferences.getBool(PREF_IO_JACK_USEJACKAUDIO)) {
             if (ports.size() == 0) {
                   registerPort("left", false, false);
                   registerPort("right", false, false);
                   }
             }
-      else if (!preferences.useJackAudio) {
+      else if (!preferences.getBool(PREF_IO_JACK_USEJACKAUDIO)) {
             foreach(jack_port_t* p, ports) {
                   unregisterPort(p);
                   ports.removeOne(p);
@@ -943,7 +964,7 @@ void JackAudio::hotPlug()
             }
 
       // Midi connections
-      if (preferences.useJackMidi) {
+      if (preferences.getBool(PREF_IO_JACK_USEJACKMIDI)) {
             if (midiInputPorts.size() == 0)
                   registerPort(QString("mscore-midiin-1"), true, true);
             }
@@ -956,11 +977,11 @@ void JackAudio::hotPlug()
             }
 
       // Timebase Master callback
-      if (preferences.jackTimebaseMaster)
+      if (preferences.getBool(PREF_IO_JACK_TIMEBASEMASTER))
             setTimebaseCallback();
       else
             releaseTimebaseCallback();
 
-      preferences.rememberLastConnections = oldremember;
+      preferences.setPreference(PREF_IO_JACK_REMEMBERLASTCONNECTIONS, oldremember);
       }
 }

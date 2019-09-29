@@ -14,7 +14,6 @@
 #define __STAFFSTATE_H__
 
 #include "element.h"
-#include "elementlayout.h"
 #include "instrument.h"
 
 namespace Ms {
@@ -30,9 +29,7 @@ enum class StaffStateType : char {
 //   @@ StaffState
 //---------------------------------------------------------
 
-class StaffState : public Element {
-      Q_GADGET
-
+class StaffState final : public Element {
       StaffStateType _staffStateType;
       qreal lw;
       QPainterPath path;
@@ -48,7 +45,7 @@ class StaffState : public Element {
       ~StaffState();
 
       virtual StaffState* clone() const  { return new StaffState(*this); }
-      virtual ElementType type() const { return ElementType::STAFF_STATE; }
+      virtual ElementType type() const   { return ElementType::STAFF_STATE; }
 
       void setStaffStateType(const QString&);
       void setStaffStateType(StaffStateType st) { _staffStateType = st; }

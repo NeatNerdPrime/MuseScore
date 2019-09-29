@@ -1,7 +1,6 @@
 //=============================================================================
 //  MuseScore
 //  Music Composition & Notation
-//  $Id:$
 //
 //  Copyright (C) 2012 Werner Schweer
 //
@@ -190,69 +189,69 @@ void TestNote::note()
       //================================================
 
    // pitch
-      note->setProperty(P_ID::PITCH, 32);
+      note->setProperty(Pid::PITCH, 32);
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->pitch(), 32);
       delete n;
 
    // tpc
-      note->setProperty(P_ID::TPC1, 21);
+      note->setProperty(Pid::TPC1, 21);
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->tpc1(), 21);
       delete n;
 
-      note->setProperty(P_ID::TPC1, 22);
-      note->setProperty(P_ID::TPC2, 22);
+      note->setProperty(Pid::TPC1, 22);
+      note->setProperty(Pid::TPC2, 22);
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->tpc2(), 22);
       delete n;
 
    // small
-      note->setProperty(P_ID::SMALL, false);
+      note->setProperty(Pid::SMALL, false);
       n = static_cast<Note*>(writeReadElement(note));
       QVERIFY(!n->small());
       delete n;
 
-      note->setProperty(P_ID::SMALL, true);
+      note->setProperty(Pid::SMALL, true);
       n = static_cast<Note*>(writeReadElement(note));
       QVERIFY(n->small());
       delete n;
 
    // mirror
-      note->setProperty(P_ID::MIRROR_HEAD, int(MScore::DirectionH::LEFT));
+      note->setProperty(Pid::MIRROR_HEAD, int(MScore::DirectionH::LEFT));
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->userMirror(), MScore::DirectionH::LEFT);
       delete n;
 
-      note->setProperty(P_ID::MIRROR_HEAD, int(MScore::DirectionH::RIGHT));
+      note->setProperty(Pid::MIRROR_HEAD, int(MScore::DirectionH::RIGHT));
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->userMirror(), MScore::DirectionH::RIGHT);
       delete n;
 
-      note->setProperty(P_ID::MIRROR_HEAD, int(MScore::DirectionH::AUTO));
+      note->setProperty(Pid::MIRROR_HEAD, int(MScore::DirectionH::AUTO));
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->userMirror(), MScore::DirectionH::AUTO);
       delete n;
 
    // dot position
-      note->setProperty(P_ID::DOT_POSITION, QVariant::fromValue(Direction(Direction::UP)));
+      note->setProperty(Pid::DOT_POSITION, QVariant::fromValue(Direction(Direction::UP)));
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(int(n->userDotPosition()), int(Direction::UP));
       delete n;
 
-      note->setProperty(P_ID::DOT_POSITION, QVariant::fromValue(Direction(Direction::DOWN)));
+      note->setProperty(Pid::DOT_POSITION, QVariant::fromValue(Direction(Direction::DOWN)));
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(int(n->userDotPosition()), int(Direction::DOWN));
       delete n;
 
-      note->setProperty(P_ID::DOT_POSITION, QVariant::fromValue(Direction(Direction::AUTO)));
+      note->setProperty(Pid::DOT_POSITION, QVariant::fromValue(Direction(Direction::AUTO)));
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(int(n->userDotPosition()), int(Direction::AUTO));
       delete n;
 
   // headGroup
       for (int i = 0; i < int(NoteHead::Group::HEAD_GROUPS); ++i) {
-            note->setProperty(P_ID::HEAD_GROUP, i);
+            note->setProperty(Pid::HEAD_GROUP, i);
             n = static_cast<Note*>(writeReadElement(note));
             QCOMPARE(int(n->headGroup()), i);
             delete n;
@@ -260,58 +259,59 @@ void TestNote::note()
 
   // headType
       for (int i = 0; i < int(NoteHead::Type::HEAD_TYPES); ++i) {
-            note->setProperty(P_ID::HEAD_TYPE, i);
+            note->setProperty(Pid::HEAD_TYPE, i);
             n = static_cast<Note*>(writeReadElement(note));
             QCOMPARE(int(n->headType()), i);
             delete n;
             }
 
    // velo offset
-      note->setProperty(P_ID::VELO_OFFSET, 38);
+      note->setProperty(Pid::VELO_OFFSET, 38);
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->veloOffset(), 38);
       delete n;
 
    // tuning
-      note->setProperty(P_ID::TUNING, 2.4);
+      note->setProperty(Pid::TUNING, 2.4);
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->tuning(), 2.4);
       delete n;
 
    // fret
-      note->setProperty(P_ID::FRET, 7);
+      note->setProperty(Pid::FRET, 7);
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->fret(), 7);
       delete n;
 
    // string
-      note->setProperty(P_ID::STRING, 4);
+      note->setProperty(Pid::STRING, 4);
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->string(), 4);
       delete n;
 
    // ghost
-      note->setProperty(P_ID::GHOST, false);
+      note->setProperty(Pid::GHOST, false);
       n = static_cast<Note*>(writeReadElement(note));
       QVERIFY(!n->ghost());
       delete n;
 
-      note->setProperty(P_ID::GHOST, true);
+      note->setProperty(Pid::GHOST, true);
       n = static_cast<Note*>(writeReadElement(note));
       QVERIFY(n->ghost());
       delete n;
 
    // velo type
-      note->setProperty(P_ID::VELO_TYPE, int(Note::ValueType::USER_VAL));
+      note->setProperty(Pid::VELO_TYPE, int(Note::ValueType::USER_VAL));
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->veloType(), Note::ValueType::USER_VAL);
       delete n;
 
-      note->setProperty(P_ID::VELO_TYPE, int(Note::ValueType::OFFSET_VAL));
+      note->setProperty(Pid::VELO_TYPE, int(Note::ValueType::OFFSET_VAL));
       n = static_cast<Note*>(writeReadElement(note));
       QCOMPARE(n->veloType(), Note::ValueType::OFFSET_VAL);
       delete n;
 
+      delete chord;
       }
 
 //---------------------------------------------------------
@@ -323,7 +323,7 @@ void TestNote::grace()
       {
       MasterScore* score = readScore(DIR + "grace.mscx");
       score->doLayout();
-      Ms::Chord* chord = score->firstMeasure()->findChord(0, 0);
+      Ms::Chord* chord = score->firstMeasure()->findChord(Fraction(0,1), 0);
       Note* note = chord->upNote();
 
       // create
@@ -377,7 +377,7 @@ void TestNote::tpc()
       MasterScore* score = readScore(DIR + "tpc.mscx");
 
       score->inputState().setTrack(0);
-      score->inputState().setSegment(score->tick2segment(0, false, SegmentType::ChordRest));
+      score->inputState().setSegment(score->tick2segment(Fraction(0,1), false, SegmentType::ChordRest));
       score->inputState().setDuration(TDuration::DurationType::V_QUARTER);
       score->inputState().setNoteEntryMode(true);
       int octave = 5 * 7;
@@ -434,7 +434,7 @@ void TestNote::tpcTranspose2()
       MasterScore* score = readScore(DIR + "tpc-transpose2.mscx");
 
       score->inputState().setTrack(0);
-      score->inputState().setSegment(score->tick2segment(0, false, SegmentType::ChordRest));
+      score->inputState().setSegment(score->tick2segment(Fraction(0,1), false, SegmentType::ChordRest));
       score->inputState().setDuration(TDuration::DurationType::V_QUARTER);
       score->inputState().setNoteEntryMode(true);
       int octave = 5 * 7;
@@ -458,7 +458,7 @@ void TestNote::noteLimits()
       MasterScore* score = readScore(DIR + "empty.mscx");
 
       score->inputState().setTrack(0);
-      score->inputState().setSegment(score->tick2segment(0, false, SegmentType::ChordRest));
+      score->inputState().setSegment(score->tick2segment(Fraction(0,1), false, SegmentType::ChordRest));
       score->inputState().setDuration(TDuration::DurationType::V_QUARTER);
       score->inputState().setNoteEntryMode(true);
 
@@ -514,7 +514,7 @@ void TestNote::LongNoteAfterShort_183746() {
       score->doLayout();
 
       score->inputState().setTrack(0);
-      score->inputState().setSegment(score->tick2segment(0, false, SegmentType::ChordRest));
+      score->inputState().setSegment(score->tick2segment(Fraction(0,1), false, SegmentType::ChordRest));
       score->inputState().setDuration(TDuration::DurationType::V_128TH);
       score->inputState().setNoteEntryMode(true);
 
@@ -525,16 +525,19 @@ void TestNote::LongNoteAfterShort_183746() {
 
       Segment* s = score->tick2segment(TDuration(TDuration::DurationType::V_128TH).ticks());
       QVERIFY(s && s->segmentType() == SegmentType::ChordRest);
+      QVERIFY(s->tick() == Fraction(1,128));
 
       Element* e = s->firstElement(0);
       QVERIFY(e && e->isNote());
 
-      int totalTicks = 0;
-      std::vector<Note*> nl = static_cast<Note*>(e)->tiedNotes();
+      std::vector<Note*> nl = toNote(e)->tiedNotes();
       QVERIFY(nl.size() >= 3); // the breve must be divided across at least 3 measures
-      for (Note* n : nl)
-            totalTicks += static_cast<Chord*>(n->parent())->durationTypeTicks();
-      QVERIFY(totalTicks == TDuration(TDuration::DurationType::V_BREVE).ticks()); // total duration same as a breve
+      Fraction totalTicks = Fraction(0,1);
+      for (Note* n : nl) {
+            totalTicks += n->chord()->durationTypeTicks();
+            }
+      Fraction breveTicks = TDuration(TDuration::DurationType::V_BREVE).ticks();
+      QVERIFY(totalTicks == breveTicks); // total duration same as a breve
       }
 
 QTEST_MAIN(TestNote)

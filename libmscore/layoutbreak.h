@@ -22,20 +22,18 @@ namespace Ms {
 //---------------------------------------------------------
 //   @@ LayoutBreak
 ///    symbols for line break, page break etc.
-//
-//   @P layoutBreakType  enum (LayoutBreak.PAGE, LayoutBreak.LINE, LayoutBreak.SECTION)
 //---------------------------------------------------------
 
-class LayoutBreak : public Element {
+class LayoutBreak final : public Element {
       Q_GADGET
-
    public:
       enum Type {
+            ///.\{
             PAGE, LINE, SECTION, NOBREAK
+            ///\}
             };
    private:
-      Q_PROPERTY(Ms::LayoutBreak::Type layoutBreakType READ layoutBreakType WRITE undoSetLayoutBreakType)
-      Q_ENUMS(Type)
+      Q_ENUM(Type);
 
       qreal lw;
       QPainterPath path;
@@ -54,12 +52,10 @@ class LayoutBreak : public Element {
       LayoutBreak(const LayoutBreak&);
       virtual LayoutBreak* clone() const override { return new LayoutBreak(*this); }
 
-      virtual ElementType type() const override { return ElementType::LAYOUT_BREAK; }
-      virtual bool systemFlag() const override    { return true;  }
+      virtual ElementType type() const override   { return ElementType::LAYOUT_BREAK; }
 
       void setLayoutBreakType(Type);
       Type layoutBreakType() const  { return _layoutBreakType; }
-      void undoSetLayoutBreakType(Type);
 
       virtual bool acceptDrop(EditData&) const override;
       virtual Element* drop(EditData&) override;
@@ -79,14 +75,13 @@ class LayoutBreak : public Element {
       bool isSectionBreak() const { return _layoutBreakType == SECTION; }
       bool isNoBreak() const      { return _layoutBreakType == NOBREAK; }
 
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID) const override;
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid) const override;
+      virtual Pid propertyId(const QStringRef& xmlName) const override;
       };
 
 
 }     // namespace Ms
-
-Q_DECLARE_METATYPE(Ms::LayoutBreak::Type);
 
 #endif

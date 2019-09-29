@@ -40,6 +40,7 @@ class TestBarline : public QObject, public MTest
       void barline05();
       void barline06();
       void barline179726();
+      void deleteSkipBarlines();
       };
 
 //---------------------------------------------------------
@@ -174,7 +175,7 @@ void TestBarline::barline02()
 //---------------------------------------------------------
 ///   barline03
 ///   Sets a staff bar line span involving spanFrom and spanTo and
-///   check tht it is properly applied to start-repeat
+///   check that it is properly applied to start-repeat
 //
 //    NO REFERENCE SCORE IS USED.
 //---------------------------------------------------------
@@ -184,9 +185,9 @@ void TestBarline::barline03()
       Score* score = readScore(DIR + "barline03.mscx");
       QVERIFY(score);
       score->startCmd();
-      score->undo(new ChangeProperty(score->staff(0), P_ID::STAFF_BARLINE_SPAN, 1));
-      score->undo(new ChangeProperty(score->staff(0), P_ID::STAFF_BARLINE_SPAN_FROM, 2));
-      score->undo(new ChangeProperty(score->staff(0), P_ID::STAFF_BARLINE_SPAN_TO, -2));
+      score->undo(new ChangeProperty(score->staff(0), Pid::STAFF_BARLINE_SPAN, 1));
+      score->undo(new ChangeProperty(score->staff(0), Pid::STAFF_BARLINE_SPAN_FROM, 2));
+      score->undo(new ChangeProperty(score->staff(0), Pid::STAFF_BARLINE_SPAN_TO, -2));
       score->endCmd();
 
       // 'go' to 5th measure
@@ -214,7 +215,7 @@ void TestBarline::barline03()
 //---------------------------------------------------------
 ///   barline04
 ///   Sets custom span parameters to a system-initial start-repeat bar line and
-///   check tht it is properly applied to it and to the start-reapeat bar lines of staves below.
+///   check that it is properly applied to it and to the start-reapeat bar lines of staves below.
 //
 //    NO REFERENCE SCORE IS USED.
 //---------------------------------------------------------
@@ -237,9 +238,9 @@ void TestBarline::barline04()
       BarLine* bar = static_cast<BarLine*>(seg->element(0));
       QVERIFY2(bar != nullptr, "No start-repeat barline in measure 5.");
 
-      bar->undoChangeProperty(P_ID::BARLINE_SPAN, 2);
-      bar->undoChangeProperty(P_ID::BARLINE_SPAN_FROM, 2);
-      bar->undoChangeProperty(P_ID::BARLINE_SPAN_TO, 6);
+      bar->undoChangeProperty(Pid::BARLINE_SPAN, 2);
+      bar->undoChangeProperty(Pid::BARLINE_SPAN_FROM, 2);
+      bar->undoChangeProperty(Pid::BARLINE_SPAN_TO, 6);
       score->endCmd();
 
       QVERIFY2(bar->spanStaff() && bar->spanFrom() == 2 && bar->spanTo() == 6,
@@ -360,11 +361,10 @@ void TestBarline::barline06()
 
 void dropNormalBarline(Element* e)
       {
-      EditData dropData;
-      dropData.view = 0;
+      EditData dropData(0);
       BarLine* barLine = new BarLine(e->score());
       barLine->setBarLineType(BarLineType::NORMAL);
-      dropData.element = barLine;
+      dropData.dropElement = barLine;
 
       e->score()->startCmd();
       e->drop(dropData);
@@ -389,7 +389,7 @@ void TestBarline::barline179726()
 
       // drop NORMAL onto initial START_REPEAT barline will remove that START_REPEAT
       dropNormalBarline(m->findSegment(SegmentType::StartRepeatBarLine, m->tick())->elementAt(0));
-      QVERIFY(m->findSegment(SegmentType::StartRepeatBarLine, 0) == NULL);
+      QVERIFY(m->findSegment(SegmentType::StartRepeatBarLine, Fraction(0,1)) == NULL);
 
       // drop NORMAL onto END_START_REPEAT will turn into NORMAL
       dropNormalBarline(m->findSegment(SegmentType::EndBarLine, m->endTick())->elementAt(0));
@@ -440,6 +440,28 @@ void TestBarline::barline179726()
       delete score;
       }
 
+//---------------------------------------------------------
+//   deleteSkipBarlines
+//---------------------------------------------------------
+
+void TestBarline::deleteSkipBarlines()
+      {
+      MasterScore* score = readScore(DIR + "barlinedelete.mscx");
+
+      Measure* m1 = score->firstMeasure();
+      QVERIFY(m1);
+
+      score->startCmd();
+      score->cmdSelectAll();
+      score->cmdDeleteSelection();
+      score->endCmd();
+
+      score->doLayout();
+
+      QVERIFY(saveCompareScore(score, QString("barlinedelete.mscx"),
+         DIR + QString("barlinedelete-ref.mscx")));
+      delete score;
+      }
 
 QTEST_MAIN(TestBarline)
 #include "tst_barline.moc"

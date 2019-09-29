@@ -18,6 +18,8 @@
 namespace Ms {
 
 class Score;
+class TempoMap;
+class SynthesizerState;
 
 //---------------------------------------------------------
 //   ExportMidi
@@ -27,15 +29,35 @@ class ExportMidi {
       QFile f;
       Score* cs;
 
+      //---------------------------------------------------
+      //   PauseMap
+      //    MIDI files cannot contain pauses so need to insert
+      //    extra ticks extra ticks and tempo changes instead.
+      //---------------------------------------------------
+
+      class PauseMap : std::map<int, int> {
+            int offsetAtUTick(int utick) const;
+
+         public:
+            TempoMap* tempomapWithPauses;
+
+            void calculate(const Score* s);
+            inline int addPauseTicks(int utick) const { return utick + this->offsetAtUTick(utick); }
+            };
+
+      PauseMap pauseMap;
+
       void writeHeader();
 
    public:
       MidiFile mf;
 
       ExportMidi(Score* s) { cs = s; }
-      bool write(const QString& name, bool midiExpandRepeats);
+      bool write(const QString& name, bool midiExpandRepeats, bool exportRPNs);
+      bool write(QIODevice* device, bool midiExpandRepeats, bool exportRPNs);
+      bool write(const QString& name, bool midiExpandRepeats, bool exportRPNs, const SynthesizerState& synthState);
+      bool write(QIODevice* device, bool midiExpandRepeats, bool exportRPNs, const SynthesizerState& synthState);
       };
-
 
 } // namespace Ms
 #endif

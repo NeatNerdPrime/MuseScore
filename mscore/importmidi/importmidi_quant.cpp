@@ -18,8 +18,6 @@
 
 namespace Ms {
 
-extern Preferences preferences;
-
 namespace Quantize {
 
 ReducedFraction quantValueToFraction(MidiOperations::QuantValue quantValue)
@@ -82,7 +80,7 @@ MidiOperations::QuantValue fractionToQuantValue(const ReducedFraction &fraction)
 
 MidiOperations::QuantValue defaultQuantValueFromPreferences()
       {
-      const auto fraction = ReducedFraction::fromTicks(preferences.shortestNote);
+      const auto fraction = ReducedFraction::fromTicks(preferences.getInt(PREF_IO_MIDI_SHORTESTNOTE));
       return fractionToQuantValue(fraction);
       }
 
@@ -402,7 +400,7 @@ void setIfHumanPerformance(
       if (allChords.empty())
             return;
       const bool isHuman = isHumanPerformance(allChords, sigmap);
-      auto &opers = preferences.midiImportOperations.data()->trackOpers;
+      auto &opers = midiImportOperations.data()->trackOpers;
       if (opers.isHumanPerformance.canRedefineDefaultLater())
             opers.isHumanPerformance.setDefaultValue(isHuman);
 
@@ -1017,7 +1015,7 @@ int findLastChordPosition(const std::vector<QuantData> &quantData)
 
 void applyDynamicProgramming(std::vector<QuantData> &quantData)
       {
-      const auto &opers = preferences.midiImportOperations.data()->trackOpers;
+      const auto &opers = midiImportOperations.data()->trackOpers;
       const bool isHuman = opers.isHumanPerformance.value();
       const double MERGE_PENALTY_COEFF = 5.0;
 
@@ -1117,7 +1115,7 @@ void quantizeOnTimesInRange(
                  "Quantize::quantizeOnTimesInRange",
                  "Sizes of quant data and chords are not equal");
 
-      for (int chordIndex = quantData.size() - 1; ; --chordIndex) {
+      for (size_t chordIndex = quantData.size() - 1; ; --chordIndex) {
             const QuantPos &p = quantData[chordIndex].positions[posIndex];
             const auto onTime = p.time;
             const auto chordIt = chords[chordIndex];

@@ -15,6 +15,7 @@
 
 #include "element.h"
 #include "durationtype.h"
+#include "property.h"
 
 namespace Ms {
 
@@ -22,7 +23,10 @@ class ChordRest;
 class MuseScoreView;
 class Chord;
 class System;
-enum class SpannerSegmentType : char;
+class Skyline;
+
+enum class IconType : signed char;
+enum class SpannerSegmentType;
 
 struct BeamFragment;
 
@@ -30,9 +34,8 @@ struct BeamFragment;
 //   @@ Beam
 //---------------------------------------------------------
 
-class Beam : public Element {
+class Beam final : public Element {
       Q_GADGET
-
       QVector<ChordRest*> _elements;        // must be sorted by tick
       QVector<QLineF*> beamSegments;
       Direction _direction;
@@ -40,7 +43,6 @@ class Beam : public Element {
       bool _up;
       bool _distribute;                   // equal spacing of elements
       bool _noSlope;
-      PropertyFlags noSlopeStyle;
 
       bool _userModified[2];              // 0: auto/down  1: up
       bool _isGrace;
@@ -59,8 +61,6 @@ class Beam : public Element {
       TDuration maxDuration;
       qreal slope { 0.0 };
 
-      int editFragment;       // valid in edit mode
-
       void layout2(std::vector<ChordRest*>, SpannerSegmentType, int frag);
       bool twoBeamedNotes();
       void computeStemLen(const std::vector<ChordRest*>& crl, qreal& py1, int beamLevels);
@@ -71,15 +71,17 @@ class Beam : public Element {
 
    public:
       enum class Mode : signed char {
+            ///.\{
             AUTO, BEGIN, MID, END, NONE, BEGIN32, BEGIN64, INVALID = -1
+            ///\}
             };
-      Q_ENUMS(Mode)
+      Q_ENUM(Mode);
 
       Beam(Score* = 0);
       Beam(const Beam&);
       ~Beam();
       virtual Beam* clone() const override         { return new Beam(*this); }
-      virtual ElementType type() const override  { return ElementType::BEAM; }
+      virtual ElementType type() const override    { return ElementType::BEAM; }
       virtual QPointF pagePos() const override;    ///< position in page coordinates
       virtual QPointF canvasPos() const override;  ///< position in page coordinates
 
@@ -89,8 +91,8 @@ class Beam : public Element {
       virtual void editDrag(EditData&) override;
       virtual void updateGrips(EditData&) const override;
 
-      virtual int tick() const override;
-      virtual int rtick() const override;
+      virtual Fraction tick() const override;
+      virtual Fraction rtick() const override;
 
       virtual void write(XmlWriter& xml) const override;
       virtual void read(XmlReader&) override;
@@ -98,7 +100,7 @@ class Beam : public Element {
 
       virtual void reset() override;
 
-      System* system() const { return (System*)parent(); }
+      System* system() const { return toSystem(parent()); }
 
       void layout1();
       void layoutGraceNotes();
@@ -107,6 +109,7 @@ class Beam : public Element {
       const QVector<ChordRest*>& elements() { return _elements;  }
       void clear()                        { _elements.clear(); }
       bool empty() const                { return _elements.empty(); }
+      bool contains(const ChordRest* cr) const { return std::find(_elements.begin(), _elements.end(), cr) != _elements.end(); }
 
       virtual void add(Element*) override;
       virtual void remove(Element*) override;
@@ -143,24 +146,20 @@ class Beam : public Element {
 
       qreal beamDist() const              { return _beamDist; }
 
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID id) const override;
-      virtual PropertyFlags propertyFlags(P_ID) const override;
-      virtual void resetProperty(P_ID id) override;
-      virtual StyleIdx getPropertyStyle(P_ID) const override;
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid id) const override;
 
-      virtual void styleChanged() override;
       bool isGrace() const { return _isGrace; }  // for debugger
       bool cross() const   { return _cross; }
-      virtual Shape shape() const override;
+
+      void addSkyline(Skyline&);
+
       virtual void triggerLayout() const override;
+
+      static IconType iconType(Mode);
       };
 
 
 }     // namespace Ms
-
-Q_DECLARE_METATYPE(Ms::Beam::Mode);
-
 #endif
-

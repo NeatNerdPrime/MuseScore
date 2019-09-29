@@ -63,21 +63,25 @@ struct TextSegment {
 struct RenderAction;
 class HDegree;
 
-class Harmony : public Text {
-      Q_GADGET
-      Q_PROPERTY(int baseTpc  READ baseTpc  WRITE setBaseTpc)
-      Q_PROPERTY(int id  READ id  WRITE setId)
-      Q_PROPERTY(int rootTpc  READ rootTpc  WRITE setRootTpc)
+enum class HarmonyType {
+      STANDARD,
+      ROMAN,
+      NASHVILLE
+      };
 
+class Harmony final : public TextBase {
       int _rootTpc;                       // root note for chord
       int _baseTpc;                       // bass note or chord base; used for "slash" chords
                                           // or notation of base note in chord
       int _id;                            // >0 = id of matched chord from chord list, if applicable
                                           // -1 = invalid chord
                                           // <-10000 = private id of generated chord or matched chord with no id
+      QString _function;                  // numeric representation of root for RNA or Nashville
       QString _userName;                  // name as typed by user if applicable
       QString _textName;                  // name recognized from chord list, read from score file, or constructed from imported source
       ParsedChord* _parsedForm;           // parsed form of chord
+      bool showSpell = false;             // show spell check warning
+      HarmonyType _harmonyType;           // used to control rendering, transposition, export, etc.
 
       QList<HDegree> _degreeList;
       QList<QFont> fontList;              // temp values used in render()
@@ -93,21 +97,23 @@ class Harmony : public Text {
 
       void determineRootBaseSpelling();
       virtual void draw(QPainter*) const override;
+      virtual void drawEditMode(QPainter* p, EditData& ed) override;
       void render(const QString&, qreal&, qreal&);
       void render(const QList<RenderAction>& renderList, qreal&, qreal&, int tpc, NoteSpellingType noteSpelling = NoteSpellingType::STANDARD, NoteCaseType noteCase = NoteCaseType::AUTO);
-      virtual void styleChanged() override     { render(); }
-//      virtual void setTextStyle(const TextStyle& st) override;
+      virtual Sid getPropertyStyle(Pid) const override;
 
    public:
       Harmony(Score* = 0);
       Harmony(const Harmony&);
       ~Harmony();
       virtual Harmony* clone() const override     { return new Harmony(*this); }
-      virtual ElementType type() const override { return ElementType::HARMONY; }
-      virtual bool systemFlag() const override    { return false;  }
+      virtual ElementType type() const override   { return ElementType::HARMONY; }
 
-      void setId(int d)                        { _id = d; }
-      int id() const                           { return _id;           }
+      void setId(int d)                        { _id = d;       }
+      int id() const                           { return _id;    }
+
+      void setBaseCase(NoteCaseType c)         { _baseCase = c; }
+      void setRootCase(NoteCaseType c)         { _rootCase = c; }
 
       bool leftParen() const                   { return _leftParen;    }
       bool rightParen() const                  { return _rightParen;   }
@@ -123,18 +129,16 @@ class Harmony : public Text {
       void determineRootBaseSpelling(NoteSpellingType& rootSpelling, NoteCaseType& rootCase,
          NoteSpellingType& baseSpelling, NoteCaseType& baseCase);
 
-      virtual void textChanged() override;
+      void textChanged();
       virtual void layout() override;
-
-      const QRectF& bboxtight() const          { return _tbbox;        }
-      QRectF& bboxtight()                      { return _tbbox;        }
-      void setbboxtight(const QRectF& r) const { _tbbox = r;           }
+      virtual void layout1() override;
 
       virtual bool isEditable() const override { return true; }
       virtual void startEdit(EditData&) override;
       virtual bool edit(EditData&) override;
       virtual void endEdit(EditData&) override;
 
+      QString hFunction() const                { return _function;     }
       QString hUserName() const                { return _userName;     }
       QString hTextName() const                { return _textName;     }
       int baseTpc() const                      { return _baseTpc;      }
@@ -142,6 +146,7 @@ class Harmony : public Text {
       int rootTpc() const                      { return _rootTpc;      }
       void setRootTpc(int val)                 { _rootTpc = val;       }
       void setTextName(const QString& s)       { _textName = s;        }
+      void setFunction(const QString& s)       { _function = s;        }
       QString rootName();
       QString baseName();
       void addDegree(const HDegree& d);
@@ -150,18 +155,20 @@ class Harmony : public Text {
       void clearDegrees();
       const QList<HDegree>& degreeList() const;
       const ParsedChord* parsedForm();
+      HarmonyType harmonyType() const          { return _harmonyType;  }
+      void setHarmonyType(HarmonyType val);
 
       virtual void write(XmlWriter& xml) const override;
       virtual void read(XmlReader&) override;
       QString harmonyName() const;
-      void render(const TextStyle* ts = 0);
+      void render();
 
       const ChordDescription* parseHarmony(const QString& s, int* root, int* base, bool syntaxOnly = false);
 
       const QString& extensionName() const;
 
       QString xmlKind() const;
-      QString xmlText() const;
+      QString musicXmlText() const;
       QString xmlSymbols() const;
       QString xmlParens() const;
       QStringList xmlDegrees() const;
@@ -178,12 +185,17 @@ class Harmony : public Text {
       void setHarmony(const QString& s);
       void calculateBoundingRect();
 
+      virtual QString userName() const override;
       virtual QString accessibleInfo() const override;
       virtual QString screenReaderInfo() const override;
 
-      virtual QVariant propertyDefault(P_ID id) const override;
-      };
+      virtual bool acceptDrop(EditData&) const override;
+      virtual Element* drop(EditData&) override;
 
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant& v) override;
+      virtual QVariant propertyDefault(Pid id) const override;
+      };
 
 }     // namespace Ms
 #endif

@@ -2,7 +2,6 @@
 //=============================================================================
 //  MuseScore
 //  Music Composition & Notation
-//  $Id:$
 //
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License version 2
@@ -56,7 +55,7 @@ void TestSfzInputControls::initTestCase()
       {
       initMTest();
       synth = new Zerberus();
-      Ms::preferences.mySoundfontsPath += ";" + root;
+      preferences.setPreference(PREF_APP_PATHS_MYSOUNDFONTS, root);
       synth->init(44100.0f);
       synth->loadInstrument("inputControls.sfz");
       channel = synth->channel(0);

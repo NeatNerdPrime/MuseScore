@@ -19,6 +19,7 @@
 namespace Ms {
 
 enum class Key;
+enum class SymId;
 
 //---------------------------------------------------------
 //   cycles
@@ -38,6 +39,7 @@ class System;
 class Element;
 class Note;
 class Tuplet;
+class BarLine;
 
 enum class ClefType : signed char;
 
@@ -63,6 +65,7 @@ extern int version();
 extern int majorVersion();
 extern int minorVersion();
 extern int updateVersion();
+extern bool compareVersion(QString v1, QString v2);
 
 extern Note* nextChordNote(Note* note);
 extern Note* prevChordNote(Note* note);
@@ -82,6 +85,7 @@ extern int pitch2step(int pitch);
 extern int step2pitch(int step);
 
 extern Segment* skipTuplet(Tuplet* tuplet);
+extern std::vector<SymId> toTimeSigString(const QString&);
 
 
 }     // namespace Ms

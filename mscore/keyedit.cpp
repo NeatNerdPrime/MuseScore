@@ -1,7 +1,6 @@
 //=============================================================================
 //  MuseScore
 //  Linux Music Score Editor
-//  $Id:$
 //
 //  Copyright (C) 2009-2011 Werner Schweer and others
 //
@@ -112,7 +111,7 @@ void KeyCanvas::paintEvent(QPaintEvent*)
       painter.fillRect(background, Qt::white);
 
       QPen pen(Qt::black);
-      pen.setWidthF(MScore::defaultStyle().value(StyleIdx::staffLineWidth).toDouble() * gscore->spatium());
+      pen.setWidthF(MScore::defaultStyle().value(Sid::staffLineWidth).toDouble() * gscore->spatium());
       painter.setPen(pen);
 
       for (int i = 0; i < 5; ++i) {
@@ -190,11 +189,11 @@ void KeyCanvas::mouseReleaseEvent(QMouseEvent*)
 
 void KeyCanvas::dragEnterEvent(QDragEnterEvent* event)
       {
-      const QMimeData* data = event->mimeData();
-      if (data->hasFormat(mimeSymbolFormat)) {
-            QByteArray a = data->data(mimeSymbolFormat);
+      const QMimeData* dta = event->mimeData();
+      if (dta->hasFormat(mimeSymbolFormat)) {
+            QByteArray a = dta->data(mimeSymbolFormat);
 
-            XmlReader e(gscore, a);
+            XmlReader e(a);
 
             QPointF dragOffset;
             Fraction duration;
@@ -275,7 +274,7 @@ KeyEditor::KeyEditor(QWidget* parent)
       l->setContentsMargins(0, 0, 0, 0);
       frame->setLayout(l);
 
-      sp = MuseScore::newKeySigPalette(PaletteType::MASTER);
+      sp = MuseScore::newKeySigPalette();
       sp->setReadOnly(false);
 
       _keyPalette = new PaletteScrollArea(sp);
@@ -290,7 +289,7 @@ KeyEditor::KeyEditor(QWidget* parent)
       l = new QVBoxLayout();
       l->setContentsMargins(0, 0, 0, 0);
       frame_3->setLayout(l);
-      sp1 = MuseScore::newAccidentalsPalette(PaletteType::MASTER);
+      sp1 = MuseScore::newAccidentalsPalette();
       PaletteScrollArea* accPalette = new PaletteScrollArea(sp1);
       QSizePolicy policy1(QSizePolicy::Expanding, QSizePolicy::Expanding);
       accPalette->setSizePolicy(policy1);
@@ -349,6 +348,7 @@ void KeyEditor::addClicked()
       ks->setKeySigEvent(e);
       sp->append(ks, "custom");
       _dirty = true;
+      emit keySigAdded(ks);
       }
 
 //---------------------------------------------------------
@@ -358,6 +358,15 @@ void KeyEditor::addClicked()
 void KeyEditor::clearClicked()
       {
       canvas->clear();
+      }
+
+//---------------------------------------------------------
+//   showKeyPalette
+//---------------------------------------------------------
+
+void KeyEditor::showKeyPalette(bool val)
+      {
+      _keyPalette->setVisible(val);
       }
 
 //---------------------------------------------------------

@@ -1,7 +1,6 @@
 //=============================================================================
 //  MusE Score
 //  Linux Music Score Editor
-//  $Id:$
 //
 //  The webview is shown on startup with a local file inviting user
 //  to start connecting with the community. They can press start and
@@ -197,7 +196,8 @@ void MyWebView::link(const QUrl& url)
       {
       QString path(url.path());
       QFileInfo fi(path);
-      if (fi.suffix() == "mscz" || fi.suffix() == "xml" || fi.suffix() == "mxl")
+      if (fi.suffix() == "mscz" || fi.suffix() == "xml"
+          || fi.suffix() == "musicxml" || fi.suffix() == "mxl")
             mscore->loadFile(url);
       else if(url.host().startsWith("connect."))
             load(QNetworkRequest(url));
@@ -239,7 +239,7 @@ WebPageDockWidget::WebPageDockWidget(MuseScore* /*mscore*/, QWidget* parent)
       
       setWidget(web);
 
-      //removing every widget from the tabbing order until suport for
+      //removing every widget from the tabbing order until support for
       //accessibility is provided
       QList<QWidget*> widgets = this->findChildren<QWidget*>();
       for(int i = 0; i < widgets.size(); i++){

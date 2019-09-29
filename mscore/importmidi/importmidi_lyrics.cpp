@@ -17,8 +17,6 @@
 
 namespace Ms {
 
-extern Preferences preferences;
-
 namespace MidiLyrics {
 
 const std::string META_PREFIX = "@";
@@ -137,22 +135,24 @@ BestTrack findBestTrack(
 
 bool isTitlePrefix(const QString &text)
       {
-      return (text.left(TEXT_PREFIX.size()) == QString::fromStdString(TEXT_PREFIX));
+      return (text.left(int(TEXT_PREFIX.size())) == QString::fromUtf8(TEXT_PREFIX.data(), int(TEXT_PREFIX.size())));
       }
 
 void addTitleToScore(Score *score, const QString &string, int textCounter)
       {
-      Text* text = new Text(score);
+      Tid ssid = Tid::DEFAULT;
       if (textCounter == 1)
-            text->setSubStyle(SubStyle::TITLE);
+            ssid = Tid::TITLE;
       else if (textCounter == 2)
-            text->setSubStyle(SubStyle::COMPOSER);
-      text->setPlainText(string.right(string.size() - TEXT_PREFIX.size()));
+            ssid = Tid::COMPOSER;
+
+      Text* text = new Text(score, ssid);
+      text->setPlainText(string.right(string.size() - int(TEXT_PREFIX.size())));
 
       MeasureBase* measure = score->first();
       if (!measure->isVBox()) {
             measure = new VBox(score);
-            measure->setTick(0);
+            measure->setTick(Fraction(0,1));
             measure->setNext(score->first());
             score->measures()->add(measure);
             }
@@ -205,8 +205,8 @@ void addLyricsToScore(
       addTitleIfAny(lyricTrack, score);
 
       for (const auto &timePair: matchedLyricTimes) {
-            const auto quantizedTime = timePair.first;
-            const auto originalTime = timePair.second;
+            const ReducedFraction quantizedTime = timePair.first;
+            const ReducedFraction originalTime = timePair.second;
             const auto it = lyricTrack.find(originalTime);
 
             Q_ASSERT_X(it != lyricTrack.end(),
@@ -214,8 +214,7 @@ void addLyricsToScore(
 
             QString text = MidiCharset::convertToCharset(it->second);
             if (originalTime != ReducedFraction(0, 1) || !isTitlePrefix(text)) { // not title
-                  score->addLyrics(quantizedTime.ticks(), staffAddTo->idx(),
-                                   removeSlashes(text).toHtmlEscaped());
+                  score->addLyrics(quantizedTime.fraction(), staffAddTo->idx(), removeSlashes(text).toHtmlEscaped());
                   }
             }
       }
@@ -225,14 +224,14 @@ void extractLyricsToMidiData(const MidiFile *mf)
       for (const auto &t: mf->tracks()) {
             const auto lyrics = extractLyricsFromTrack(t, mf->division(), mf->isDivisionInTps());
             if (!lyrics.empty())
-                  preferences.midiImportOperations.data()->lyricTracks.push_back(lyrics);
+                  midiImportOperations.data()->lyricTracks.push_back(lyrics);
             }
       }
 
 void setInitialLyricsFromMidiData(const QList<MTrack> &tracks)
       {
       std::set<int> usedTracks;
-      auto &data = *preferences.midiImportOperations.data();
+      auto &data = *midiImportOperations.data();
       const auto &lyricTracks = data.lyricTracks;
       if (lyricTracks.isEmpty())
             return;
@@ -269,11 +268,11 @@ std::vector<std::pair<ReducedFraction, ReducedFraction> > findMatchedLyricTimes(
 
 void setLyricsFromOperations(const QList<MTrack> &tracks)
       {
-      const auto &lyricTracks = preferences.midiImportOperations.data()->lyricTracks;
+      const auto &lyricTracks = midiImportOperations.data()->lyricTracks;
       if (lyricTracks.isEmpty())
             return;
       for (const auto &track: tracks) {
-            const auto &opers = preferences.midiImportOperations.data()->trackOpers;
+            const auto &opers = midiImportOperations.data()->trackOpers;
             const int lyricTrackIndex = opers.lyricTrackIndex.value(track.indexOfOperation);
             if (lyricTrackIndex >= 0 && lyricTrackIndex < lyricTracks.size()) {
                   const auto &lyricTrack = lyricTracks[lyricTrackIndex];
@@ -286,7 +285,7 @@ void setLyricsFromOperations(const QList<MTrack> &tracks)
 
 void setLyricsToScore(QList<MTrack> &tracks)
       {
-      const auto *data = preferences.midiImportOperations.data();
+      const auto *data = midiImportOperations.data();
       if (data->processingsOfOpenedFile == 0) {
             setInitialLyricsFromMidiData(tracks);
             }
@@ -298,7 +297,7 @@ void setLyricsToScore(QList<MTrack> &tracks)
 QList<std::string> makeLyricsListForUI()
       {
       QList<std::string> list;
-      const auto &lyrics = preferences.midiImportOperations.data()->lyricTracks;
+      const auto &lyrics = midiImportOperations.data()->lyricTracks;
       if (lyrics.isEmpty())
             return list;
 
@@ -312,13 +311,13 @@ QList<std::string> makeLyricsListForUI()
                   if (isMetaText(text))
                         continue;
                   if (!lyricText.empty())
-                        lyricText += " ";       // visual text delimeter
+                        lyricText += " ";       // visual text delimiter
                   if (lyricText.size() + text.size() > symbolLimit)
                         lyricText += text.substr(0, symbolLimit - lyricText.size());
                   else
                         lyricText += text;
                   if (lyricText.size() >= symbolLimit - 1) {
-                        lyricText += "...";
+                        lyricText += "…";
                         break;
                         }
                   }

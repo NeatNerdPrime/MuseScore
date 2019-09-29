@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
-<score-partwise>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="3.1">
   <work>
     <work-number>MuseScore testfile</work-number>
     <work-title>Instrument-sound</work-title>
@@ -39,7 +39,7 @@
         </score-instrument>
       <midi-device id="P2-I1" port="1"></midi-device>
       <midi-instrument id="P2-I1">
-        <midi-channel>2</midi-channel>
+        <midi-channel>3</midi-channel>
         <midi-program>24</midi-program>
         <volume>78.7402</volume>
         <pan>0</pan>
@@ -53,7 +53,7 @@
         </score-instrument>
       <midi-device id="P3-I1" port="1"></midi-device>
       <midi-instrument id="P3-I1">
-        <midi-channel>3</midi-channel>
+        <midi-channel>4</midi-channel>
         <midi-program>44</midi-program>
         <volume>78.7402</volume>
         <pan>0</pan>
@@ -129,6 +129,11 @@
           <sign>G</sign>
           <line>2</line>
           </clef>
+        <transpose>
+          <diatonic>0</diatonic>
+          <chromatic>0</chromatic>
+          <octave-change>-1</octave-change>
+          </transpose>
         </attributes>
       <note>
         <pitch>

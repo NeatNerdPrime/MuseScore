@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
-<score-partwise>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="3.1">
   <work>
     <work-number>MuseScore testfile</work-number>
     <work-title>Note Attributes 1</work-title>
@@ -251,7 +251,7 @@
         <type>quarter</type>
         <stem>up</stem>
         <notations>
-          <slur type="start" number="1"/>
+          <slur type="start" placement="below" number="1"/>
           <articulations>
             <staccato/>
             </articulations>
@@ -267,7 +267,7 @@
         <type>quarter</type>
         <stem>up</stem>
         <notations>
-          <slur type="start" number="2"/>
+          <slur type="start" placement="below" number="2"/>
           <articulations>
             <staccato/>
             </articulations>
@@ -285,8 +285,8 @@
         <notations>
           <slur type="stop" number="2"/>
           <articulations>
-            <accent/>
             <staccato/>
+            <accent/>
             </articulations>
           </notations>
         </note>

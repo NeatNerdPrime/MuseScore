@@ -19,7 +19,6 @@ namespace Ms {
 
 class MidiNote;
 class Note;
-class Event;
 enum class Key;
 
 const int   INVALID_PITCH      = -1;
@@ -70,8 +69,6 @@ enum class NoteCaseType : signed char { AUTO = -1, CAPITAL = 0, LOWER, UPPER };
 
 extern int pitch2tpc(int pitch, Key, Prefer prefer);
 
-extern void spell(QList<Event>& notes, int);
-extern void spell(QList<Note*>& notes);
 extern int computeWindow(const std::vector<Note*>& notes, int start, int end);
 extern int tpc(int idx, int pitch, int opt);
 extern QString tpc2name(int tpc, NoteSpellingType spelling, NoteCaseType noteCase, bool explicitAccidental = false);
@@ -99,7 +96,7 @@ inline static AccidentalVal tpc2alter(int tpc) {
 
 extern QString tpc2stepName(int tpc);
 extern bool tpcIsValid(int val);
-
+inline bool pitchIsValid(int pitch) { return pitch >= 0 && pitch <= 127; }
 
 }     // namespace Ms
 #endif

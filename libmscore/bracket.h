@@ -26,10 +26,9 @@ enum class BracketType : signed char;
 //   @@ Bracket
 //---------------------------------------------------------
 
-class Bracket : public Element {
-      Q_GADGET
-
+class Bracket final : public Element {
       BracketItem* _bi;
+      qreal ay1;
       qreal h2;
 
       int _firstStaff;
@@ -42,6 +41,7 @@ class Bracket : public Element {
       // horizontal scaling factor for brace symbol. Cannot be equal to magY or depend on h
       // because layout needs width of brace before knowing height of system...
       qreal _magx;
+      Measure* _measure = nullptr;
 
    public:
       Bracket(Score*);
@@ -53,17 +53,21 @@ class Bracket : public Element {
       BracketItem* bracketItem() const          { return _bi;          }
 
       BracketType bracketType() const           { return _bi->bracketType(); }
+      static const char* bracketTypeName(BracketType type);
 
       int firstStaff() const                    { return _firstStaff; }
-      void setFirstStaff(int val)               { _firstStaff = val;  }
-
       int lastStaff() const                     { return _lastStaff; }
-      void setLastStaff(int val)                { _lastStaff = val;  }
+      void setStaffSpan(int a, int b);
 
+      SymId braceSymbol() const                 { return _braceSymbol; }
       int column() const                        { return _bi->column();  }
       int span() const                          { return _bi->bracketSpan();    }
+      qreal magx() const                        { return _magx;                 }
 
       System* system() const                    { return (System*)parent(); }
+
+      Measure* measure() const                  { return _measure; }
+      void setMeasure(Measure* measure)         { _measure = measure; }
 
       virtual void setHeight(qreal) override;
       virtual qreal width() const override;
@@ -73,6 +77,9 @@ class Bracket : public Element {
       virtual void draw(QPainter*) const override;
       virtual void layout() override;
 
+      virtual void write(XmlWriter& xml) const override;
+      virtual void read(XmlReader&) override;
+
       virtual bool isEditable() const override { return true; }
       virtual void startEdit(EditData&) override;
       virtual bool edit(EditData&) override;
@@ -80,14 +87,17 @@ class Bracket : public Element {
       virtual void editDrag(EditData&) override;
       virtual void endEditDrag(EditData&) override;
       virtual void updateGrips(EditData&) const override;
-//      virtual int grips() const override { return 1; }
 
       virtual bool acceptDrop(EditData&) const override;
       virtual Element* drop(EditData&) override;
 
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID) const override;
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid) const override;
+
+      void undoChangeProperty(Pid id, const QVariant& v, PropertyFlags ps) override;
+      using ScoreElement::undoChangeProperty;
+
       virtual void setSelected(bool f) override;
       };
 

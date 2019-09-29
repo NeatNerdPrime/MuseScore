@@ -1,7 +1,6 @@
 //=============================================================================
 //  MusE Score
 //  Linux Music Score Editor
-//  $Id: importove.cpp 3763 2010-12-15 15:52:09Z vanferry $
 //
 //  Copyright (C) 2002-2009 Werner Schweer and others
 //
@@ -2257,7 +2256,7 @@ public:
             }
 
 public:
-      // ingore data more than 4 bytes
+      // ignore data more than 4 bytes
       bool isEqual(const QString& name) const;
       };
 

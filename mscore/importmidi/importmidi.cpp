@@ -68,7 +68,6 @@
 
 namespace Ms {
 
-extern Preferences preferences;
 extern void updateNoteLines(Segment*, int track);
 
 
@@ -197,7 +196,7 @@ void findAllTupletsForDrums(
       for (size_t voice = 0; voice < drumVoiceCount; ++voice) {
             for (auto &chord: chords[voice]) {
                         // correct voice because it can be changed during tuplet detection
-                  setChordVoice(chord.second, voice);
+                  setChordVoice(chord.second, int(voice));
                   mtrack.chords.insert({chord.first, chord.second});
                   }
             }
@@ -209,7 +208,7 @@ void quantizeAllTracks(std::multimap<int, MTrack> &tracks,
                        TimeSigMap *sigmap,
                        const ReducedFraction &lastTick)
       {
-      auto &opers = preferences.midiImportOperations;
+      auto &opers = midiImportOperations;
 
       for (auto &track: tracks) {
             MTrack &mtrack = track.second;
@@ -277,7 +276,7 @@ void MTrack::processMeta(int tick, const MidiEvent& mm)
                   {
                   const std::string text = MidiCharset::fromUchar(data);
 
-                  auto &opers = preferences.midiImportOperations;
+                  auto &opers = midiImportOperations;
                   if (opers.data()->processingsOfOpenedFile == 0) {
                         const int currentTrack = indexOfOperation;
                         opers.data()->trackOpers.staffName.setValue(currentTrack, text);
@@ -298,7 +297,7 @@ void MTrack::processMeta(int tick, const MidiEvent& mm)
                         }
                   KeySigEvent ke;
                   ke.setKey(Key(key));
-                  staff->setKey(tick, ke);
+                  staff->setKey(Fraction::fromTicks(tick), ke);
                   hasKey = true;
                   }
                   break;
@@ -308,31 +307,32 @@ void MTrack::processMeta(int tick, const MidiEvent& mm)
             case META_SUBTITLE:
             case META_TITLE:
                   {
-                  Text* text = new Text(cs);
+                  Tid ssid = Tid::DEFAULT;
                   switch(mm.metaType()) {
                         case META_COMPOSER:
-                              text->setSubStyle(SubStyle::COMPOSER);
+                              ssid = Tid::COMPOSER;
                               break;
                         case META_TRANSLATOR:
-                              text->setSubStyle(SubStyle::TRANSLATOR);
+                              ssid = Tid::TRANSLATOR;
                               break;
                         case META_POET:
-                              text->setSubStyle(SubStyle::POET);
+                              ssid = Tid::POET;
                               break;
                         case META_SUBTITLE:
-                              text->setSubStyle(SubStyle::SUBTITLE);
+                              ssid = Tid::SUBTITLE;
                               break;
                         case META_TITLE:
-                              text->setSubStyle(SubStyle::TITLE);
+                              ssid = Tid::TITLE;
                               break;
                         }
+                  Text* text = new Text(cs, ssid);
 
                   text->setPlainText((const char*)(mm.edata()));
 
                   MeasureBase* measure = cs->first();
                   if (!measure->isVBox()) {
                         measure = new VBox(cs);
-                        measure->setTick(0);
+                        measure->setTick(Fraction(0,1));
                         measure->setNext(cs->first());
                         cs->measures()->add(measure);
                         }
@@ -362,7 +362,7 @@ MTrack::toDurationList(const Measure *measure,
                        Meter::DurationType durationType)
       {
                   // find tuplets over which duration goes
-      auto barTick = ReducedFraction::fromTicks(measure->tick());
+      auto barTick = ReducedFraction(measure->tick());
       auto tupletsData = MidiTuplet::findTupletsInBarForDuration(
                         voice, barTick, startTick, len, tuplets);
       struct {
@@ -378,7 +378,7 @@ MTrack::toDurationList(const Measure *measure,
       const ReducedFraction startTickInBar = startTick - barTick;
       const ReducedFraction endTickInBar = startTickInBar + len;
 
-      const auto &opers = preferences.midiImportOperations;
+      const auto &opers = midiImportOperations;
       const bool useDots = opers.data()->trackOpers.useDots.value(indexOfOperation);
       return Meter::toDurationList(startTickInBar, endTickInBar,
                                    ReducedFraction(measure->timesig()), tupletsData,
@@ -389,7 +389,7 @@ ReducedFraction splitDurationOnBarBoundary(const ReducedFraction &len,
                                            const ReducedFraction &onTime,
                                            const Measure* measure)
       {
-      const ReducedFraction barLimit = ReducedFraction::fromTicks(measure->tick() + measure->ticks());
+      const ReducedFraction barLimit = ReducedFraction(measure->endTick());
       if (onTime + len > barLimit)
             return barLimit - onTime;
       return len;
@@ -407,8 +407,8 @@ void MTrack::fillGapWithRests(Score* score,
       ReducedFraction restLen = restLength;
       while (restLen > ReducedFraction(0, 1)) {
             ReducedFraction len = restLen;
-            Measure* measure = score->tick2measure(startChordTick.ticks());
-            if (startChordTick >= ReducedFraction::fromTicks(measure->tick() + measure->ticks())) {
+            Measure* measure = score->tick2measure(startChordTick.fraction());
+            if (startChordTick >= ReducedFraction(measure->endTick())) {
                   qDebug("tick2measure: %d end of score?", startChordTick.ticks());
                   startChordTick += restLen;
                   restLen = ReducedFraction(0, 1);
@@ -416,15 +416,15 @@ void MTrack::fillGapWithRests(Score* score,
                   }
             len = splitDurationOnBarBoundary(len, startChordTick, measure);
 
-            if (len >= ReducedFraction::fromTicks(measure->ticks())) {
+            if (len >= ReducedFraction(measure->ticks())) {
                               // rest to the whole measure
-                  len = ReducedFraction::fromTicks(measure->ticks());
+                  len = ReducedFraction(measure->ticks());
                   if (voice == 0) {
                         TDuration duration(TDuration::DurationType::V_MEASURE);
                         Rest* rest = new Rest(score, duration);
-                        rest->setDuration(measure->len());
+                        rest->setTicks(measure->ticks());
                         rest->setTrack(track);
-                        Segment* s = measure->getSegment(SegmentType::ChordRest, startChordTick.ticks());
+                        Segment* s = measure->getSegment(SegmentType::ChordRest, startChordTick.fraction());
                         s->add(rest);
                         }
                   restLen -= len;
@@ -443,10 +443,9 @@ void MTrack::fillGapWithRests(Score* score,
                         const ReducedFraction &tupletRatio = durationPair.first;
                         len = ReducedFraction(duration.fraction()) / tupletRatio;
                         Rest* rest = new Rest(score, duration);
-                        rest->setDuration(duration.fraction());
+                        rest->setTicks(duration.fraction());
                         rest->setTrack(track);
-                        Segment* s = measure->getSegment(SegmentType::ChordRest,
-                                                         startChordTick.ticks());
+                        Segment* s = measure->getSegment(SegmentType::ChordRest, startChordTick.fraction());
                         s->add(rest);
                         MidiTuplet::addElementToTuplet(voice, startChordTick, len, rest, tuplets);
                         restLen -= len;
@@ -522,7 +521,7 @@ void MTrack::processPendingNotes(QList<MidiChord> &midiChords,
       const Drumset* drumset = staff->part()->instrument()->drumset();
       const bool useDrumset  = staff->part()->instrument()->useDrumset();
 
-      const auto& opers = preferences.midiImportOperations.data()->trackOpers;
+      const auto& opers = midiImportOperations.data()->trackOpers;
       const int currentTrack = indexOfOperation;
 
                   // all midiChords here should have the same onTime value
@@ -534,7 +533,7 @@ void MTrack::processPendingNotes(QList<MidiChord> &midiChords,
             if (len <= ReducedFraction(0, 1))
                   break;
             len = MChord::findMinDuration(tick, midiChords, len);
-            Measure* measure = score->tick2measure(tick.ticks());
+            Measure* measure = score->tick2measure(tick.fraction());
             len = splitDurationOnBarBoundary(len, tick, measure);
 
             const auto dl = toDurationList(measure, voice, tick, len, Meter::DurationType::NOTE);
@@ -547,7 +546,7 @@ void MTrack::processPendingNotes(QList<MidiChord> &midiChords,
             Chord* chord = new Chord(score);
             chord->setTrack(track);
             chord->setDurationType(d);
-            chord->setDuration(d.fraction());
+            chord->setTicks(d.fraction());
 
             if (opers.showStaccato.value(currentTrack)
                         && startChordTick == startChordTickFrac   // first chord in tied chord sequence
@@ -557,7 +556,7 @@ void MTrack::processPendingNotes(QList<MidiChord> &midiChords,
                   chord->add(a);
                   }
 
-            Segment* s = measure->getSegment(SegmentType::ChordRest, tick.ticks());
+            Segment* s = measure->getSegment(SegmentType::ChordRest, tick.fraction());
             s->add(chord);
             MidiTuplet::addElementToTuplet(voice, tick, len, chord, tuplets);
 
@@ -619,12 +618,12 @@ void MTrack::createNotes(const ReducedFraction &lastTick)
                               // collect all midiChords on current tick position
                   startChordTick = nextChordTick;       // debug
                   for ( ; it != chords.end(); ++it) {
-                        const MidiChord& midiChord = it->second;
+                        const MidiChord& midiChord1 = it->second;
                         if (it->first != startChordTick)
                               break;
-                        if (midiChord.voice != voice)
+                        if (midiChord1.voice != voice)
                               continue;
-                        midiChords.append(midiChord);
+                        midiChords.append(midiChord1);
                         }
                   if (midiChords.isEmpty())
                         break;
@@ -710,7 +709,7 @@ std::multimap<int, MTrack> createMTrackList(TimeSigMap *sigmap, const MidiFile *
             if (hasNotes) {
                   ++trackIndex;
                   track.hadInitialNotes = true;
-                  const auto *data = preferences.midiImportOperations.data();
+                  const auto *data = midiImportOperations.data();
                   if (data->processingsOfOpenedFile > 0) {
                         if (data->trackOpers.doImport.value(trackIndex)) {
                               track.indexOfOperation = trackIndex;
@@ -736,7 +735,7 @@ std::multimap<int, MTrack> createMTrackList(TimeSigMap *sigmap, const MidiFile *
 Measure* barFromIndex(const Score *score, int barIndex)
       {
       const int tick = score->sigmap()->bar2tick(barIndex, 0);
-      return score->tick2measure(tick);
+      return score->tick2measure(Fraction::fromTicks(tick));
       }
 
 bool isPickupWithLessTimeSig(const Fraction &firstBarTimeSig, const Fraction &secondBarTimeSig)
@@ -776,18 +775,18 @@ void tryCreatePickupMeasure(
             int *begBarIndex,
             int *barCount)
       {
-      const int firstBarTick = score->sigmap()->bar2tick(0, 0);
+      const int firstBarTick  = score->sigmap()->bar2tick(0, 0);
       const int secondBarTick = score->sigmap()->bar2tick(1, 0);
       const Fraction firstTimeSig = score->sigmap()->timesig(firstBarTick).timesig();
       const Fraction secondTimeSig = score->sigmap()->timesig(secondBarTick).timesig();
 
       if (isPickupWithLessTimeSig(firstTimeSig, secondTimeSig)) {
             Measure* pickup = new Measure(score);
-            pickup->setTick(firstBarTick);
+            pickup->setTick(Fraction::fromTicks(firstBarTick));
             pickup->setNo(0);
             pickup->setIrregular(true);
             pickup->setTimesig(secondTimeSig);       // nominal time signature
-            pickup->setLen(firstTimeSig);            // actual length
+            pickup->setTicks(firstTimeSig);            // actual length
             score->measures()->add(pickup);
             *begBarIndex = 1;
             }
@@ -800,17 +799,17 @@ void tryCreatePickupMeasure(
             score->sigmap()->add(firstBarTick, secondTimeSig);
 
             Measure* firstBar = new Measure(score);
-            firstBar->setTick(firstBarTick);
+            firstBar->setTick(Fraction::fromTicks(firstBarTick));
             firstBar->setNo(0);
             firstBar->setTimesig(secondTimeSig);
-            firstBar->setLen(secondTimeSig);
+            firstBar->setTicks(secondTimeSig);
             score->measures()->add(firstBar);
 
             Measure* secondBar = new Measure(score);
-            secondBar->setTick(firstBarTick + secondTimeSig.ticks());
+            secondBar->setTick(Fraction::fromTicks(firstBarTick + secondTimeSig.ticks()));
             secondBar->setNo(1);
             secondBar->setTimesig(secondTimeSig);
-            secondBar->setLen(secondTimeSig);
+            secondBar->setTicks(secondTimeSig);
             score->measures()->add(secondBar);
 
             *begBarIndex = 2;
@@ -824,7 +823,7 @@ void createMeasures(const ReducedFraction &firstTick, ReducedFraction &lastTick,
       if (beat > 0 || tick > 0)
             ++barCount;           // convert bar index to number of bars
 
-      auto &data = *preferences.midiImportOperations.data();
+      auto &data = *midiImportOperations.data();
       if (data.processingsOfOpenedFile == 0) {
             if (!areNextBarsEqual(score, barCount))
                   data.trackOpers.searchPickupMeasure.setValue(false);
@@ -838,25 +837,25 @@ void createMeasures(const ReducedFraction &firstTick, ReducedFraction &lastTick,
 
       for (int i = begBarIndex; i < barCount; ++i) {
             Measure* m = new Measure(score);
-            const int tick = score->sigmap()->bar2tick(i, 0);
-            m->setTick(tick);
+            const int t = score->sigmap()->bar2tick(i, 0);
+            m->setTick(Fraction::fromTicks(tick));
             m->setNo(i);
-            const Fraction timeSig = score->sigmap()->timesig(tick).timesig();
+            const Fraction timeSig = score->sigmap()->timesig(t).timesig();
             m->setTimesig(timeSig);
-            m->setLen(timeSig);
+            m->setTicks(timeSig);
             score->measures()->add(m);
             }
 
       const Measure *m = score->lastMeasure();
       if (m) {
             score->fixTicks();
-            lastTick = ReducedFraction::fromTicks(m->endTick());
+            lastTick = ReducedFraction(m->endTick());
             }
       }
 
 void setTrackInfo(MidiType midiType, MTrack &mt)
       {
-      auto &opers = preferences.midiImportOperations;
+      auto &opers = midiImportOperations;
 
       const int currentTrack = mt.indexOfOperation;
       const QString instrName = MidiInstr::instrumentName(midiType, mt.program,
@@ -890,18 +889,18 @@ void createTimeSignatures(Score *score)
       for (auto is = score->sigmap()->begin(); is != score->sigmap()->end(); ++is) {
             const SigEvent& se = is->second;
             const int tick = is->first;
-            Measure* m = score->tick2measure(tick);
+            Measure* m = score->tick2measure(Fraction::fromTicks(tick));
             if (!m)
                   continue;
             Fraction newTimeSig = se.timesig();
 
-            const auto& opers = preferences.midiImportOperations;
+            const auto& opers = midiImportOperations;
             const bool pickupMeasure = opers.data()->trackOpers.searchPickupMeasure.value();
 
             if (pickupMeasure && is == score->sigmap()->begin()) {
                   auto next = std::next(is);
                   if (next != score->sigmap()->end()) {
-                        Measure* mm = score->tick2measure(next->first);
+                        Measure* mm = score->tick2measure(Fraction::fromTicks(next->first));
                         if (m && mm && m == barFromIndex(score, 0) && mm == barFromIndex(score, 1)
                                     && m->timesig() == mm->timesig() && newTimeSig != mm->timesig())
                               {
@@ -914,7 +913,7 @@ void createTimeSignatures(Score *score)
                   TimeSig* ts = new TimeSig(score);
                   ts->setSig(newTimeSig);
                   ts->setTrack(staffIdx * VOICES);
-                  Segment* seg = m->getSegment(SegmentType::TimeSig, tick);
+                  Segment* seg = m->getSegment(SegmentType::TimeSig, Fraction::fromTicks(tick));
                   seg->add(ts);
                   }
             if (newTimeSig != se.timesig())   // was a pickup measure - skip next timesig
@@ -997,7 +996,7 @@ void applySwing(QList<MTrack> &tracks)
       for (int i = 0; i < tracks.size(); ++i) {
             MTrack &mt = tracks[i];
 
-            const auto& opers = preferences.midiImportOperations.data()->trackOpers;
+            const auto& opers = midiImportOperations.data()->trackOpers;
             const auto swingType = opers.swing.value(mt.indexOfOperation);
             Swing::detectSwing(mt.staff, swingType);
 
@@ -1036,7 +1035,7 @@ void setLeftRightHandSplit(const std::multimap<int, MTrack> &tracks)
                   }
 
             if (LRHand::needToSplit(mtrack.chords, mtrack.program, mtrack.mtrack->drumTrack())) {
-                  preferences.midiImportOperations.data()->trackOpers.doStaffSplit.setValue(
+                  midiImportOperations.data()->trackOpers.doStaffSplit.setValue(
                                                                               trackIndex, true);
                   }
             }
@@ -1071,13 +1070,13 @@ ReducedFraction findLastChordTick(const std::multimap<int, MTrack> &tracks)
       return lastTick;
       }
 
-void convertMidi(Score *score, const MidiFile *mf)
+QList<MTrack> convertMidi(Score *score, const MidiFile *mf)
       {
       auto *sigmap = score->sigmap();
 
       auto tracks = createMTrackList(sigmap, mf);
 
-      auto &opers = preferences.midiImportOperations;
+      auto &opers = midiImportOperations;
       if (opers.data()->processingsOfOpenedFile == 0)         // for newly opened MIDI file
             MidiChordName::findChordNames(tracks);
 
@@ -1161,6 +1160,8 @@ void convertMidi(Score *score, const MidiFile *mf)
       MidiLyrics::setLyricsToScore(trackList);
       MidiTempo::setTempo(tracks, score);
       MidiChordName::setChordNames(trackList);
+
+      return trackList;
       }
 
 void loadMidiData(MidiFile &mf)
@@ -1177,7 +1178,7 @@ Score::FileError importMidi(MasterScore *score, const QString &name)
       if (name.isEmpty())
             return Score::FileError::FILE_NOT_FOUND;
 
-      auto &opers = preferences.midiImportOperations;
+      auto &opers = midiImportOperations;
 
       MidiOperations::CurrentMidiFileSetter setCurrentMidiFile(opers, name);
       if (!opers.hasMidiFile(name))
@@ -1198,7 +1199,7 @@ Score::FileError importMidi(MasterScore *score, const QString &name)
                   if (!MScore::noGui) {
                         QMessageBox::warning(0,
                            QWidget::tr("Load MIDI"),
-                           QWidget::tr("Load failed: ") + errorText,
+                           QWidget::tr("Load failed: %1").arg(errorText),
                            QString::null, QWidget::tr("Quit"), QString::null, 0, 1);
                         }
                   fp.close();
@@ -1211,7 +1212,7 @@ Score::FileError importMidi(MasterScore *score, const QString &name)
             opers.setMidiFileData(name, mf);
             }
 
-      convertMidi(score, opers.midiFile(name));
+      opers.data()->tracks = convertMidi(score, opers.midiFile(name));
       ++opers.data()->processingsOfOpenedFile;
 
       return Score::FileError::FILE_NO_ERROR;

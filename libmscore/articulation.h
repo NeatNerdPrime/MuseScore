@@ -35,7 +35,7 @@ enum class ArticulationAnchor : char {
       TOP_STAFF,      // anchor is always placed at top of staff
       BOTTOM_STAFF,   // anchor is always placed at bottom of staff
       CHORD,          // anchor depends on chord direction, away from stem
-      TOP_CHORD,      // attribute is alway placed at top of chord
+      TOP_CHORD,      // attribute is always placed at top of chord
       BOTTOM_CHORD,   // attribute is placed at bottom of chord
       };
 
@@ -54,9 +54,7 @@ constexpr bool operator& (ArticulationShowIn a1, ArticulationShowIn a2) {
 ///    articulation marks
 //---------------------------------------------------------
 
-class Articulation : public Element {
-      Q_GADGET
-
+class Articulation final : public Element {
       SymId _symId;
       Direction _direction;
       QString _channelName;
@@ -64,11 +62,17 @@ class Articulation : public Element {
       ArticulationAnchor _anchor;
 
       bool _up;
-      qreal _timeStretch;                       // for fermata
       MScore::OrnamentStyle _ornamentStyle;     // for use in ornaments such as trill
       bool _playArticulation;
 
       virtual void draw(QPainter*) const;
+
+      enum class AnchorGroup {
+            ARTICULATION,
+            LUTE_FINGERING,
+            OTHER
+            };
+      static AnchorGroup anchorGroup(SymId);
 
    public:
       Articulation(Score*);
@@ -80,32 +84,33 @@ class Articulation : public Element {
 
       virtual qreal mag() const override;
 
-
       SymId symId() const                       { return _symId; }
       void setSymId(SymId id);
-      virtual int subtype() const override      { return int(_symId); }
+      virtual int subtype() const override;
       QString userName() const;
       const char* articulationName() const;  // type-name of articulation; used for midi rendering
+      static const char* symId2ArticulationName(SymId symId);
 
       virtual void layout() override;
+      bool layoutCloseToNote() const;
 
       virtual void read(XmlReader&) override;
       virtual void write(XmlWriter& xml) const override;
       virtual bool readProperties(XmlReader&) override;
 
-      virtual void reset() override;
       virtual QLineF dragAnchor() const override;
 
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID) const override;
-      virtual PropertyFlags propertyFlags(P_ID) const override;
-      virtual void resetProperty(P_ID id) override;
-      StyleIdx getPropertyStyle(P_ID id) const override;
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid) const override;
+      virtual void resetProperty(Pid id) override;
+      Sid getPropertyStyle(Pid id) const override;
+
+      virtual Pid propertyId(const QStringRef& xmlName) const override;
 
       bool up() const                       { return _up; }
       void setUp(bool val);
-      void setDirection(Direction d);
+      void setDirection(Direction d)        { _direction = d;    }
       Direction direction() const           { return _direction; }
 
       ChordRest* chordRest() const;
@@ -116,9 +121,6 @@ class Articulation : public Element {
 
       ArticulationAnchor anchor() const     { return _anchor;      }
       void setAnchor(ArticulationAnchor v)  { _anchor = v;         }
-
-      qreal timeStretch() const             { return _timeStretch; }
-      void setTimeStretch(qreal val)        { _timeStretch = val;  }
 
       MScore::OrnamentStyle ornamentStyle() const { return _ornamentStyle; }
       void setOrnamentStyle(MScore::OrnamentStyle val) { _ornamentStyle = val; }
@@ -131,11 +133,15 @@ class Articulation : public Element {
 
       QString accessibleInfo() const override;
 
-      bool isFermata() const;
+      bool isDouble() const;
       bool isTenuto() const;
       bool isStaccato() const;
       bool isAccent() const;
+      bool isMarcato() const;
       bool isLuteFingering() const;
+      bool isOrnament() const;
+
+      void doAutoplace();
       };
 
 }     // namespace Ms

@@ -13,12 +13,15 @@
 #ifndef __SCORE_ELEMENT_H__
 #define __SCORE_ELEMENT_H__
 
+#include "types.h"
+#include "style.h"
+
 namespace Ms {
-Q_NAMESPACE
 
 class ScoreElement;
 class MasterScore;
 class XmlWriter;
+class ConnectorInfoReader;
 class Measure;
 class Staff;
 class Part;
@@ -26,7 +29,6 @@ class Score;
 class Sym;
 class MuseScoreView;
 class Segment;
-class TextStyle;
 class Element;
 class BarLine;
 class Articulation;
@@ -59,6 +61,7 @@ class Rest;
 class LayoutBreak;
 class Tremolo;
 class System;
+class Sticking;
 class Lyrics;
 class LyricsLine;
 class LyricsLineSegment;
@@ -75,6 +78,7 @@ class Ambitus;
 class Bracket;
 class InstrumentChange;
 class Text;
+class TextBase;
 class Hairpin;
 class HairpinSegment;
 class Bend;
@@ -112,10 +116,27 @@ class MeasureBase;
 class Page;
 class SystemText;
 class BracketItem;
+class Spanner;
+class SpannerSegment;
+class BagpipeEmbellishment;
+class LineSegment;
+class BSymbol;
+class TextLineBase;
+class Fermata;
 
-enum class P_ID : int;
+class LetRing;
+class LetRingSegment;
+class Vibrato;
+class VibratoSegment;
+class PalmMute;
+class PalmMuteSegment;
+class MeasureNumber;
+
+class StaffTextBase;
+
+enum class Pid : int;
 enum class PropertyFlags : char;
-enum class StyleIdx : int;
+enum class Sid : int;
 
 //---------------------------------------------------------
 //   LinkedElements
@@ -130,118 +151,9 @@ class LinkedElements : public QList<ScoreElement*> {
 
       void setLid(Score*, int val);
       int lid() const   { return _lid;    }
+
+      ScoreElement* mainElement();
       };
-
-//-------------------------------------------------------------------
-//    The value of this enum determines the "stacking order"
-//    of elements on the canvas.
-//   Note: keep in sync with array elementNames[] in scoreElement.cpp
-//-------------------------------------------------------------------
-
-enum class ElementType {
-      INVALID = 0,
-      BRACKET_ITEM,
-      PART,
-      STAFF,
-      SCORE,
-      SYMBOL,
-      TEXT,
-      INSTRUMENT_NAME,
-      SLUR_SEGMENT,
-      TIE_SEGMENT,
-      STAFF_LINES,
-      BAR_LINE,
-      SYSTEM_DIVIDER,
-      STEM_SLASH,
-      LINE,
-      ARPEGGIO,
-      ACCIDENTAL,
-      LEDGER_LINE,
-      STEM,                   // list STEM before NOTE: notes in TAB might 'break' stems
-      NOTE,                   // and this requires stems to be drawn before notes
-      CLEF,                   // elements from CLEF to TIMESIG need to be in the order
-      KEYSIG,                 // in which they appear in a measure
-      AMBITUS,
-      TIMESIG,
-      REST,
-      BREATH,
-      REPEAT_MEASURE,
-      TIE,
-      ARTICULATION,
-      CHORDLINE,
-      DYNAMIC,
-      BEAM,
-      HOOK,
-      LYRICS,
-      FIGURED_BASS,
-      MARKER,
-      JUMP,
-      FINGERING,
-      TUPLET,
-      TEMPO_TEXT,
-      STAFF_TEXT,
-      SYSTEM_TEXT,
-      REHEARSAL_MARK,
-      INSTRUMENT_CHANGE,
-      STAFFTYPE_CHANGE,
-      HARMONY,
-      FRET_DIAGRAM,
-      BEND,
-      TREMOLOBAR,
-      VOLTA,
-      HAIRPIN_SEGMENT,
-      OTTAVA_SEGMENT,
-      TRILL_SEGMENT,
-      TEXTLINE_SEGMENT,
-      VOLTA_SEGMENT,
-      PEDAL_SEGMENT,
-      LYRICSLINE_SEGMENT,
-      GLISSANDO_SEGMENT,
-      LAYOUT_BREAK,
-      SPACER,
-      STAFF_STATE,
-      NOTEHEAD,
-      NOTEDOT,
-      TREMOLO,
-      IMAGE,
-      MEASURE,
-      SELECTION,
-      LASSO,
-      SHADOW_NOTE,
-      TAB_DURATION_SYMBOL,
-      FSYMBOL,
-      PAGE,
-      HAIRPIN,
-      OTTAVA,
-      PEDAL,
-      TRILL,
-      TEXTLINE,
-      TEXTLINE_BASE,
-      NOTELINE,
-      LYRICSLINE,
-      GLISSANDO,
-      BRACKET,
-      SEGMENT,
-      SYSTEM,
-      COMPOUND,
-      CHORD,
-      SLUR,
-      ELEMENT,
-      ELEMENT_LIST,
-      STAFF_LIST,
-      MEASURE_LIST,
-      HBOX,
-      VBOX,
-      TBOX,
-      FBOX,
-      ICON,
-      OSSIA,
-      BAGPIPE_EMBELLISHMENT,
-
-      MAXTYPE
-      };
-
-Q_ENUM_NS(ElementType)
 
 //---------------------------------------------------------
 //   ElementName
@@ -258,15 +170,19 @@ struct ElementName {
 //---------------------------------------------------------
 
 class ScoreElement {
-      Q_GADGET
       Score* _score;
+      static ElementStyle const emptyStyle;
 
    protected:
-      LinkedElements* _links { 0 };
+      const ElementStyle* _elementStyle { &emptyStyle };
+      PropertyFlags* _propertyFlagsList { 0 };
+      LinkedElements* _links            { 0 };
+      virtual int getPropertyFlagsIdx(Pid id) const;
 
    public:
       ScoreElement(Score* s) : _score(s)   {}
       ScoreElement(const ScoreElement& se);
+
       virtual ~ScoreElement();
 
       Score* score() const                 { return _score;      }
@@ -276,31 +192,58 @@ class ScoreElement {
       virtual QString userName() const;
       virtual ElementType type() const = 0;
 
-      static ElementType name2type(const QStringRef&);
+      static ElementType name2type(const QStringRef&, bool silent = false);
+      static ElementType name2type(const QString& s) { return name2type(QStringRef(&s)); }
       static const char* name(ElementType);
 
-      virtual QVariant getProperty(P_ID) const = 0;
-      virtual bool setProperty(P_ID, const QVariant&) = 0;
-      virtual QVariant propertyDefault(P_ID) const { return QVariant(); }
-      virtual void resetProperty(P_ID id);
-      virtual PropertyFlags propertyFlags(P_ID) const;
-      virtual void setPropertyFlags(P_ID, PropertyFlags) {}
-      virtual StyleIdx getPropertyStyle(P_ID) const;
+      virtual QVariant getProperty(Pid) const = 0;
+      virtual bool setProperty(Pid, const QVariant&) = 0;
+      virtual QVariant propertyDefault(Pid) const;
+      virtual void resetProperty(Pid id);
+      QVariant propertyDefault(Pid pid, Tid tid) const;
+      virtual bool sizeIsSpatiumDependent() const { return true; }
 
-      void undoChangeProperty(P_ID id, const QVariant&, PropertyFlags ps);
-      void undoChangeProperty(P_ID id, const QVariant&);
-      void undoResetProperty(P_ID id);
+      virtual void reset();                     // reset all properties & position to default
 
-      void undoPushProperty(P_ID);
-      void writeProperty(XmlWriter& xml, P_ID id) const;
+      virtual Pid propertyId(const QStringRef& xmlName) const;
+      virtual QString propertyUserValue(Pid) const;
+
+      virtual void initElementStyle(const ElementStyle*);
+      virtual const ElementStyle* styledProperties() const   { return _elementStyle; }
+
+      virtual PropertyFlags* propertyFlagsList() const   { return _propertyFlagsList; }
+      virtual PropertyFlags propertyFlags(Pid) const;
+      bool isStyled(Pid pid) const;
+      QVariant styleValue(Pid, Sid) const;
+
+      virtual void setPropertyFlags(Pid, PropertyFlags);
+
+      virtual Sid getPropertyStyle(Pid) const;
+      bool readProperty(const QStringRef&, XmlReader&, Pid);
+      void readProperty(XmlReader&, Pid);
+      bool readStyledProperty(XmlReader& e, const QStringRef& tag);
+
+      virtual void readAddConnector(ConnectorInfoReader* info, bool pasteMode);
+
+      virtual void styleChanged();
+
+      virtual void undoChangeProperty(Pid id, const QVariant&, PropertyFlags ps);
+      void undoChangeProperty(Pid id, const QVariant&);
+      void undoResetProperty(Pid id);
+
+      void undoPushProperty(Pid);
+      void writeProperty(XmlWriter& xml, Pid id) const;
+      void writeStyledProperties(XmlWriter&) const;
 
       QList<ScoreElement*> linkList() const;
 
       void linkTo(ScoreElement*);
       void unlink();
+      bool isLinked(ScoreElement*);
+
       virtual void undoUnlink();
       int lid() const                         { return _links ? _links->lid() : 0; }
-      const LinkedElements* links() const     { return _links;      }
+      LinkedElements* links() const           { return _links;      }
       void setLinks(LinkedElements* le)       { _links = le;        }
 
       //---------------------------------------------------
@@ -320,6 +263,7 @@ class ScoreElement {
       CONVERT(Chord,         CHORD)
       CONVERT(BarLine,       BAR_LINE)
       CONVERT(Articulation,  ARTICULATION)
+      CONVERT(Fermata,       FERMATA)
       CONVERT(Marker,        MARKER)
       CONVERT(Clef,          CLEF)
       CONVERT(KeySig,        KEYSIG)
@@ -379,6 +323,12 @@ class ScoreElement {
       CONVERT(NoteLine,      NOTELINE)
       CONVERT(Trill,         TRILL)
       CONVERT(TrillSegment,  TRILL_SEGMENT)
+      CONVERT(LetRing,       LET_RING)
+      CONVERT(LetRingSegment, LET_RING_SEGMENT)
+      CONVERT(Vibrato,       VIBRATO)
+      CONVERT(PalmMute,      PALM_MUTE)
+      CONVERT(PalmMuteSegment, PALM_MUTE_SEGMENT)
+      CONVERT(VibratoSegment,  VIBRATO_SEGMENT)
       CONVERT(Symbol,        SYMBOL)
       CONVERT(FSymbol,       FSYMBOL)
       CONVERT(Fingering,     FINGERING)
@@ -392,20 +342,74 @@ class ScoreElement {
       CONVERT(ChordLine,     CHORDLINE)
       CONVERT(FretDiagram,   FRET_DIAGRAM)
       CONVERT(Page,          PAGE)
+      CONVERT(Text,          TEXT)
+      CONVERT(MeasureNumber, MEASURE_NUMBER)
+      CONVERT(StaffText,     STAFF_TEXT)
       CONVERT(SystemText,    SYSTEM_TEXT)
       CONVERT(BracketItem,   BRACKET_ITEM)
+      CONVERT(Score,         SCORE)
       CONVERT(Staff,         STAFF)
+      CONVERT(Part,          PART)
+      CONVERT(BagpipeEmbellishment, BAGPIPE_EMBELLISHMENT)
+      CONVERT(Sticking,      STICKING)
 #undef CONVERT
 
+      virtual bool isElement() const { return false; } // overriden in element.h
       bool isChordRest() const       { return isRest() || isChord() || isRepeatMeasure(); }
       bool isDurationElement() const { return isChordRest() || isTuplet(); }
       bool isSlurTieSegment() const  { return isSlurSegment() || isTieSegment(); }
-      bool isStaffText() const       { return type() == ElementType::STAFF_TEXT || type() == ElementType::SYSTEM_TEXT; }
-      bool isSLine() const;
       bool isSLineSegment() const;
       bool isBox() const { return isVBox() || isHBox() || isTBox() || isFBox(); }
+      bool isVBoxBase() const { return isVBox() || isTBox() || isFBox(); }
       bool isMeasureBase() const { return isMeasure() || isBox(); }
-      bool isText() const;
+      bool isTextBase() const;
+      bool isTextLineBaseSegment() const {
+         return isHairpinSegment()
+         || isLetRingSegment()
+         || isTextLineSegment()
+         || isOttavaSegment()
+         || isPalmMuteSegment()
+         || isPedalSegment()
+         || isVoltaSegment()
+         ;
+         }
+      bool isLineSegment() const {
+         return isGlissandoSegment()
+         || isLyricsLineSegment()
+         || isTextLineBaseSegment()
+         || isTrillSegment()
+         || isVibratoSegment()
+         ;
+         }
+      bool isSpannerSegment() const { return isLineSegment() || isTextLineBaseSegment() || isSlurSegment() || isTieSegment(); }
+      bool isBSymbol() const { return isImage() || isSymbol(); }
+      bool isTextLineBase() const {
+            return isHairpin()
+            || isLetRing()
+            || isNoteLine()
+            || isOttava()
+            || isPalmMute()
+            || isPedal()
+            || isTextLine()
+            || isVolta()
+            ;
+            }
+      bool isSLine() const {
+            return isTextLineBase() || isTrill() || isGlissando() || isVibrato();
+            }
+
+      bool isSpanner() const {
+         return isSlur()
+         || isTie()
+         || isGlissando()
+         || isLyricsLine()
+         || isTextLineBase()
+         || isSLine()
+         ;
+         }
+      bool isStaffTextBase() const {
+            return isStaffText() || isSystemText();
+            }
       };
 
 //---------------------------------------------------
@@ -436,6 +440,14 @@ static inline const DurationElement* toDurationElement(const ScoreElement* e) {
          || e->type() == ElementType::REPEAT_MEASURE || e->type() == ElementType::TUPLET);
       return (const DurationElement*)e;
       }
+static inline Rest* toRest(ScoreElement* e) {
+      Q_ASSERT(!e || e->isRest() || e->isRepeatMeasure());
+      return (Rest*)e;
+      }
+static inline const Rest* toRest(const ScoreElement* e) {
+      Q_ASSERT(!e || e->isRest() || e->isRepeatMeasure());
+      return (const Rest*)e;
+      }
 static inline SlurTieSegment* toSlurTieSegment(ScoreElement* e) {
       Q_ASSERT(e == 0 || e->type() == ElementType::SLUR_SEGMENT || e->type() == ElementType::TIE_SEGMENT);
       return (SlurTieSegment*)e;
@@ -456,16 +468,45 @@ static inline Box* toBox(ScoreElement* e) {
      Q_ASSERT(e == 0 || e->isBox());
       return (Box*)e;
       }
+static inline SpannerSegment* toSpannerSegment(ScoreElement* e) {
+      Q_ASSERT(e == 0 || e->isSpannerSegment());
+      return (SpannerSegment*)e;
+      }
+static inline BSymbol* toBSymbol(ScoreElement* e) {
+      Q_ASSERT(e == 0 || e->isBSymbol());
+      return (BSymbol*)e;
+      }
+static inline TextLineBase* toTextLineBase(ScoreElement* e) {
+      Q_ASSERT(e == 0 || e->isTextLineBase());
+      return (TextLineBase*)e;
+      }
+static inline TextBase* toTextBase(ScoreElement* e) {
+      Q_ASSERT(e == 0 || e->isTextBase());
+      return (TextBase*)e;
+      }
+static inline const TextBase* toTextBase(const ScoreElement* e) {
+      Q_ASSERT(e == 0 || e->isTextBase());
+      return (const TextBase*)e;
+      }
+static inline StaffTextBase* toStaffTextBase(ScoreElement* e) {
+      Q_ASSERT(e == 0 || e->isStaffTextBase());
+      return (StaffTextBase*)e;
+      }
+static inline const StaffTextBase* toStaffTextBase(const ScoreElement* e) {
+      Q_ASSERT(e == 0 || e->isStaffTextBase());
+      return (const StaffTextBase*)e;
+      }
 
 #define CONVERT(a)  \
 static inline a* to##a(ScoreElement* e)             { Q_ASSERT(e == 0 || e->is##a()); return (a*)e; } \
 static inline const a* to##a(const ScoreElement* e) { Q_ASSERT(e == 0 || e->is##a()); return (const a*)e; }
 
+      CONVERT(Element)
       CONVERT(Note)
-      CONVERT(Rest)
       CONVERT(Chord)
       CONVERT(BarLine)
       CONVERT(Articulation)
+      CONVERT(Fermata)
       CONVERT(Marker)
       CONVERT(Clef)
       CONVERT(KeySig)
@@ -477,6 +518,7 @@ static inline const a* to##a(const ScoreElement* e) { Q_ASSERT(e == 0 || e->is##
       CONVERT(VBox)
       CONVERT(TBox)
       CONVERT(FBox)
+      CONVERT(Spanner)
       CONVERT(Tie)
       CONVERT(Slur)
       CONVERT(Glissando)
@@ -497,6 +539,7 @@ static inline const a* to##a(const ScoreElement* e) { Q_ASSERT(e == 0 || e->is##
       CONVERT(Beam)
       CONVERT(Hook)
       CONVERT(StemSlash)
+      CONVERT(LineSegment)
       CONVERT(SlurSegment)
       CONVERT(TieSegment)
       CONVERT(Spacer)
@@ -506,6 +549,7 @@ static inline const a* to##a(const ScoreElement* e) { Q_ASSERT(e == 0 || e->is##
       CONVERT(InstrumentChange)
       CONVERT(StaffTypeChange)
       CONVERT(Text)
+      CONVERT(MeasureNumber)
       CONVERT(Hairpin)
       CONVERT(HairpinSegment)
       CONVERT(Bend)
@@ -527,6 +571,12 @@ static inline const a* to##a(const ScoreElement* e) { Q_ASSERT(e == 0 || e->is##
       CONVERT(NoteLine)
       CONVERT(Trill)
       CONVERT(TrillSegment)
+      CONVERT(LetRing)
+      CONVERT(LetRingSegment)
+      CONVERT(Vibrato)
+      CONVERT(VibratoSegment)
+      CONVERT(PalmMute)
+      CONVERT(PalmMuteSegment)
       CONVERT(Symbol)
       CONVERT(FSymbol)
       CONVERT(Fingering)
@@ -543,6 +593,9 @@ static inline const a* to##a(const ScoreElement* e) { Q_ASSERT(e == 0 || e->is##
       CONVERT(SystemText)
       CONVERT(BracketItem)
       CONVERT(Staff)
+      CONVERT(Part)
+      CONVERT(BagpipeEmbellishment)
+      CONVERT(Sticking)
 #undef CONVERT
 
 }

@@ -33,9 +33,12 @@ class Xml;
 class MasterSynthesizer : public QObject {
       Q_OBJECT
 
-      float _gain             { 0.1   };     // -20dB
+      float _gain             { 0.1f  };     // -20dB
       float _boost            { 10.0  };     // +20dB
       double _masterTuning    { 440.0 };
+
+      int _dynamicsMethod     { 1 };      // Default dynamics method
+      int _ccToUse            { 1 };      // CC2
 
    public:
       static const int MAX_BUFFERSIZE = 8192;
@@ -82,6 +85,7 @@ class MasterSynthesizer : public QObject {
       QString name(unsigned) const;
 
       QList<MidiPatch*> getPatchInfo() const;
+      MidiPatch* getPatchInfo(QString synti, int bank, int program);
 
       SynthesizerState state() const;
       bool setState(const SynthesizerState&);
@@ -102,6 +106,13 @@ class MasterSynthesizer : public QObject {
       float gain() const     { return _gain; }
       float boost() const    { return _boost; }
       void setBoost(float v) { _boost = v; }
+
+      int dynamicsMethod() const          { return _dynamicsMethod; }
+      void setDynamicsMethod(int val)     { _dynamicsMethod = val; }
+      int ccToUseIndex() const            { return _ccToUse; }    // NOTE: this doesn't return a CC number, but returns an index instead
+      void setCcToUseIndex(int val)       { _ccToUse = val; }
+
+      bool storeState();
       };
 
 }

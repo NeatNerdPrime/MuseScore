@@ -34,12 +34,12 @@ ExampleView::ExampleView(QWidget* parent)
       setFocusPolicy(Qt::StrongFocus);
       resetMatrix();
       _fgPixmap = nullptr;
-      if (preferences.fgUseColor)
-            _fgColor = preferences.fgColor;
+      if (preferences.getBool(PREF_UI_CANVAS_FG_USECOLOR))
+            _fgColor = preferences.getColor(PREF_UI_CANVAS_FG_COLOR);
       else {
-            _fgPixmap = new QPixmap(preferences.fgWallpaper);
+            _fgPixmap = new QPixmap(preferences.getString(PREF_UI_CANVAS_FG_WALLPAPER));
             if (_fgPixmap == 0 || _fgPixmap->isNull())
-                  qDebug("no valid pixmap %s", qPrintable(preferences.fgWallpaper));
+                  qDebug("no valid pixmap %s", qPrintable(preferences.getString(PREF_UI_CANVAS_FG_WALLPAPER)));
             }
       // setup drag canvas state
       sm          = new QStateMachine(this);
@@ -85,8 +85,7 @@ void ExampleView::resetMatrix()
       double mag = 0.9 * guiScaling * (DPI_DISPLAY / DPI);  // 90% of nominal
       qreal _spatium = SPATIUM20 * mag;
       // example would normally be 10sp from top of page; this leaves 3sp margin above
-//      _matrix  = QTransform(mag, 0.0, 0.0, mag, _spatium, -_spatium * 7.0);
-      _matrix  = QTransform(mag, 0.0, 0.0, mag, _spatium, -_spatium * 10.0);
+      _matrix  = QTransform(mag, 0.0, 0.0, mag, _spatium, -_spatium * 7.0);
       imatrix  = _matrix.inverted();
       }
 
@@ -117,6 +116,8 @@ void ExampleView::setScore(Score* s)
       _score = s;
       _score->addViewer(this);
       _score->setLayoutMode(LayoutMode::LINE);
+
+      ScoreLoad sl;
       _score->doLayout();
       update();
       }
@@ -141,12 +142,6 @@ void ExampleView::setCursor(const QCursor&)
 int ExampleView::gripCount() const
       {
       return 0;
-      }
-
-const QRectF& ExampleView::getGrip(Grip) const
-      {
-      static QRectF r;
-      return r;
       }
 
 void ExampleView::setDropRectangle(const QRectF&)
@@ -203,7 +198,7 @@ void ExampleView::paintEvent(QPaintEvent* ev)
       {
       if (_score) {
             QPainter p(this);
-            p.setRenderHint(QPainter::Antialiasing, preferences.antialiasedDrawing);
+            p.setRenderHint(QPainter::Antialiasing, preferences.getBool(PREF_UI_CANVAS_MISC_ANTIALIASEDDRAWING));
             p.setRenderHint(QPainter::TextAntialiasing, true);
             const QRect r(ev->rect());
 
@@ -227,15 +222,15 @@ void ExampleView::paintEvent(QPaintEvent* ev)
 
 void ExampleView::dragEnterEvent(QDragEnterEvent* event)
       {
-      const QMimeData* data = event->mimeData();
-      if (data->hasFormat(mimeSymbolFormat)) {
+      const QMimeData* d = event->mimeData();
+      if (d->hasFormat(mimeSymbolFormat)) {
             event->acceptProposedAction();
 
-            QByteArray a = data->data(mimeSymbolFormat);
+            QByteArray a = d->data(mimeSymbolFormat);
 
 // qDebug("ExampleView::dragEnterEvent Symbol: <%s>", a.data());
 
-            XmlReader e(score(), a);
+            XmlReader e(a);
             QPointF dragOffset;
             Fraction duration;  // dummy
             ElementType type = Element::readType(e, &dragOffset, &duration);

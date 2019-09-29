@@ -1,7 +1,6 @@
 //=============================================================================
 //  MuseScore
 //  Linux Music Score Editor
-//  $Id: articulation.cpp -1   $
 //
 //  Copyright (C) 2002-2011 Werner Schweer and others
 //
@@ -58,13 +57,13 @@ ArticulationProperties::ArticulationProperties(Articulation* na, QWidget* parent
 //      const QList<Channel>& channel() const;
 
             for (const Channel* a : instrument->channel()) {
-                  if (a->name.isEmpty() || a->name == "normal") {
-                        channelList->addItem(tr("normal"));
-                        channelList->item(channelList->count() - 1)->setData(Qt::UserRole, "normal");
+                  if (a->name().isEmpty() || a->name() == Channel::DEFAULT_NAME) {
+                        channelList->addItem(tr(Channel::DEFAULT_NAME));
+                        channelList->item(channelList->count() - 1)->setData(Qt::UserRole, Channel::DEFAULT_NAME);
                         }
                   else {
-                        channelList->addItem(qApp->translate("InstrumentsXML", a->name.toUtf8().data()));
-                        channelList->item(channelList->count() - 1)->setData(Qt::UserRole, a->name);
+                        channelList->addItem(qApp->translate("InstrumentsXML", a->name().toUtf8().data()));
+                        channelList->item(channelList->count() - 1)->setData(Qt::UserRole, a->name());
                         }
                   }
             for (const NamedEventList& el : instrument->midiActions()) {
@@ -123,11 +122,11 @@ void ArticulationProperties::saveValues()
 #endif
       if (int(articulation->direction()) != direction->currentIndex())
             articulation->score()->undo(new ChangeProperty(articulation,
-               P_ID::DIRECTION, direction->currentIndex()));
+               Pid::DIRECTION, direction->currentIndex()));
 
       if (int(articulation->anchor()) != anchor->currentIndex())
             articulation->score()->undo(new ChangeProperty(articulation,
-               P_ID::ARTICULATION_ANCHOR, anchor->currentIndex()));
+               Pid::ARTICULATION_ANCHOR, anchor->currentIndex()));
       }
 
 //---------------------------------------------------------

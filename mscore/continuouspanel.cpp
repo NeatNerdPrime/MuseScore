@@ -54,7 +54,7 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
       qreal _oldWidth = 0;        // The last final panel width
       qreal _newWidth = 0;        // New panel width
       qreal _height = 0;
-      qreal _leftMarginTotal = 0; // Sum of all elments left margin
+      qreal _leftMarginTotal = 0; // Sum of all elements left margin
       qreal _panelRightPadding = 5;  // Extra space for the panel after last element
 
       Measure* measure = _score->firstMeasure();
@@ -113,8 +113,8 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
             if (!e->visible() && !_score->showInvisible())
                   continue;
 
-            if (e->isMeasure()) {
-                  _currentMeasure = toMeasure(e);
+            if (e->isStaffLines()) {
+                  _currentMeasure = toStaffLines(e)->measure();
                   break;
                   }
             }
@@ -129,7 +129,7 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
 
       qreal _xPosMeasure       = _currentMeasure->canvasX();
       qreal _measureWidth      = _currentMeasure->width();
-      int tick                 = _currentMeasure->tick();
+      int tick                 = _currentMeasure->tick().ticks();
       Fraction _currentTimeSig = _currentMeasure->timesig();
       //qDebug() << "_sv->xoffset()=" <<_sv->xoffset() << " _sv->mag()="<< _sv->mag() <<" s->x=" << s->x() << " width=" << _width << " currentMeasure=" << _currentMeasure->x() << " _xPosMeasure=" << _xPosMeasure;
 
@@ -156,13 +156,13 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
 
             if (e->isStaffLines()) {
                   Staff* currentStaff = _score->staff(e->staffIdx());
-                  Segment* parent = _score->tick2segment(tick);
+                  Segment* parent = _score->tick2segment(Fraction::fromTicks(tick));
 
                   // Find maximum width for the staff name
-                  QList<StaffName>& staffNamesLong = currentStaff->part()->instrument()->longNames();
+                  QList<StaffName>& staffNamesLong = currentStaff->part()->instrument(Fraction::fromTicks(tick))->longNames();
                   QString staffName = staffNamesLong.isEmpty() ? " " : staffNamesLong[0].name();
                   if (staffName == "") {
-                        QList<StaffName>& staffNamesShort = currentStaff->part()->instrument()->shortNames();
+                        QList<StaffName>& staffNamesShort = currentStaff->part()->instrument(Fraction::fromTicks(tick))->shortNames();
                         staffName = staffNamesShort.isEmpty() ? "" : staffNamesShort[0].name();
                         }
                   Text* newName = new Text(_score);
@@ -177,7 +177,7 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
 
                   // Find maximum width for the current Clef
                   Clef* newClef = new Clef(_score);
-                  ClefType currentClef = currentStaff->clef(tick);
+                  ClefType currentClef = currentStaff->clef(Fraction::fromTicks(tick));
                   newClef->setClefType(currentClef);
                   newClef->setParent(parent);
                   newClef->setTrack(e->track());
@@ -187,7 +187,7 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
 
                   // Find maximum width for the current KeySignature
                   KeySig* newKs = new KeySig(_score);
-                  KeySigEvent currentKeySigEvent = currentStaff->keySigEvent(tick);
+                  KeySigEvent currentKeySigEvent = currentStaff->keySigEvent(Fraction::fromTicks(tick));
                   newKs->setKeySigEvent(currentKeySigEvent);
                   // The Parent and the Track must be set to have the key signature layout adjusted to different clefs
                   // This also adds naturals to the key signature (if set in the score style)
@@ -202,7 +202,7 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
                   TimeSig* newTs = new TimeSig(_score);
 
                   // Try to get local time signature, if not, get the current measure one
-                  TimeSig* currentTimeSig = currentStaff->timeSig(tick);
+                  TimeSig* currentTimeSig = currentStaff->timeSig(Fraction::fromTicks(tick));
                   if (currentTimeSig)
                         newTs->setFrom(currentTimeSig);
                   else
@@ -224,14 +224,14 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
                  }
             }
 
-      _leftMarginTotal = _score->styleP(StyleIdx::clefLeftMargin);
-      _leftMarginTotal += _score->styleP(StyleIdx::keysigLeftMargin);
-      _leftMarginTotal += _score->styleP(StyleIdx::timesigLeftMargin);
+      _leftMarginTotal = _score->styleP(Sid::clefLeftMargin);
+      _leftMarginTotal += _score->styleP(Sid::keysigLeftMargin);
+      _leftMarginTotal += _score->styleP(Sid::timesigLeftMargin);
 
       _newWidth = _widthClef + _widthKeySig + _widthTimeSig + _leftMarginTotal + _panelRightPadding;
       _xPosMeasure -= _offsetPanel;
 
-      lineWidthName += _score->spatium() + _score->styleP(StyleIdx::clefLeftMargin) + _widthClef;
+      lineWidthName += _score->spatium() + _score->styleP(Sid::clefLeftMargin) + _widthClef;
       if (_newWidth < lineWidthName) {
             _newWidth = lineWidthName;
             _oldWidth = 0;
@@ -272,13 +272,13 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
       pen.setWidthF(0.0);
       pen.setStyle(Qt::NoPen);
       painter.setPen(pen);
-      painter.setBrush(preferences.fgColor);
+      painter.setBrush(preferences.getColor(PREF_UI_CANVAS_FG_COLOR));
       QRectF bg(_rect);
 
       bg.setWidth(_widthClef + _widthKeySig + _widthTimeSig + _leftMarginTotal + _panelRightPadding);
       QPixmap* fgPixmap = _sv->fgPixmap();
       if (fgPixmap == 0 || fgPixmap->isNull())
-            painter.fillRect(bg, preferences.fgColor);
+            painter.fillRect(bg, preferences.getColor(PREF_UI_CANVAS_FG_COLOR));
       else {
             painter.setMatrixEnabled(false);
             painter.drawTiledPixmap(bg, *fgPixmap, bg.topLeft()
@@ -301,7 +301,7 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
       newElement->setSizeIsSpatiumDependent(true);
       newElement->setColor(color);
       newElement->layout1();
-      pos = QPointF(_score->styleP(StyleIdx::clefLeftMargin) + _widthClef, _y + newElement->height());
+      pos = QPointF(_score->styleP(Sid::clefLeftMargin) + _widthClef, _y + newElement->height());
       painter.translate(pos);
       newElement->draw(&painter);
       pos += QPointF(_offsetPanel, 0);
@@ -319,18 +319,17 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
             if (e->isStaffLines()) {
                   painter.save();
                   Staff* currentStaff = _score->staff(e->staffIdx());
-                  Segment* parent = _score->tick2segmentMM(tick);
+                  Segment* parent = _score->tick2segmentMM(Fraction::fromTicks(tick));
 
                   pos = QPointF (_offsetPanel, e->pagePos().y());
                   painter.translate(pos);
 
                   // Draw staff lines
                   StaffLines newStaffLines(*toStaffLines(e));
-                  newStaffLines.setParent(parent);
+                  newStaffLines.setParent(parent->measure());
                   newStaffLines.setTrack(e->track());
-                  newStaffLines.layout();
+                  newStaffLines.layoutForWidth(bg.width());
                   newStaffLines.setColor(color);
-                  newStaffLines.setWidth(bg.width());
                   newStaffLines.draw(&painter);
 
                   // Draw barline
@@ -346,10 +345,10 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
                   barLine.draw(&painter);
 
                   // Draw the current staff name
-                  QList<StaffName>& staffNamesLong = currentStaff->part()->instrument()->longNames();
+                  QList<StaffName>& staffNamesLong = currentStaff->part()->instrument(Fraction::fromTicks(tick))->longNames();
                   QString staffName = staffNamesLong.isEmpty() ? " " : staffNamesLong[0].name();
                   if (staffName == "") {
-                        QList<StaffName>& staffNamesShort = currentStaff->part()->instrument()->shortNames();
+                        QList<StaffName>& staffNamesShort = currentStaff->part()->instrument(Fraction::fromTicks(tick))->shortNames();
                         staffName = staffNamesShort.isEmpty() ? "" : staffNamesShort[0].name();
                         }
 
@@ -364,8 +363,8 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
                   newName->setPlainText(newName->plainText());
                   newName->layout();
                   if (currentStaff->part()->staff(0) == currentStaff) {
-                        double _spatium = _score->spatium();
-                        pos = QPointF (_score->styleP(StyleIdx::clefLeftMargin) + _widthClef, -_spatium * 2);
+                        const double spatium = _score->spatium();
+                        pos = QPointF (_score->styleP(Sid::clefLeftMargin) + _widthClef, -spatium * 2);
                         painter.translate(pos);
                         newName->draw(&painter);
                         painter.translate(-pos);
@@ -376,18 +375,18 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
 
                   // Draw the current Clef
                   Clef clef(_score);
-                  clef.setClefType(currentStaff->clef(tick));
+                  clef.setClefType(currentStaff->clef(Fraction::fromTicks(tick)));
                   clef.setParent(parent);
                   clef.setTrack(e->track());
                   clef.setColor(color);
                   clef.layout();
-                  posX += _score->styleP(StyleIdx::clefLeftMargin);
+                  posX += _score->styleP(Sid::clefLeftMargin);
                   clef.drawAt(&painter, QPointF(posX, clef.pos().y()));
                   posX += _widthClef;
 
                   // Draw the current KeySignature
                   KeySig newKs(_score);
-                  newKs.setKeySigEvent(currentStaff->keySigEvent(tick));
+                  newKs.setKeySigEvent(currentStaff->keySigEvent(Fraction::fromTicks(tick)));
 
                   // The Parent and the track must be set to have the key signature layout adjusted to different clefs
                   // This also adds naturals to the key signature (if set in the score style)
@@ -396,7 +395,7 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
                   newKs.setColor(color);
                   newKs.setHideNaturals(true);
                   newKs.layout();
-                  posX += _score->styleP(StyleIdx::keysigLeftMargin);
+                  posX += _score->styleP(Sid::keysigLeftMargin);
                   newKs.drawAt(&painter, QPointF(posX, 0.0));
 
                   posX += _widthKeySig + _xPosTimeSig;
@@ -405,14 +404,14 @@ void ContinuousPanel::paint(const QRect&, QPainter& painter)
                   TimeSig newTs(_score);
 
                   // Try to get local time signature, if not, get the current measure one
-                  TimeSig* currentTimeSig = currentStaff->timeSig(tick);
+                  TimeSig* currentTimeSig = currentStaff->timeSig(Fraction::fromTicks(tick));
                   if (currentTimeSig) {
                         newTs.setFrom(currentTimeSig);
                         newTs.setParent(parent);
                         newTs.setTrack(e->track());
                         newTs.setColor(color);
                         newTs.layout();
-                        posX += _score->styleP(StyleIdx::timesigLeftMargin);
+                        posX += _score->styleP(Sid::timesigLeftMargin);
                         newTs.drawAt(&painter, QPointF(posX, 0.0));
                         }
                   painter.restore();

@@ -1,7 +1,6 @@
 //=============================================================================
 //  Awl
 //  Audio Widget Library
-//  $Id:$
 //
 //  Copyright (C) 2002-2006 by Werner Schweer and others
 //
@@ -48,8 +47,6 @@ Slider::Slider(Qt::Orientation orientation, QWidget* parent)
 
 void Slider::init()
       {
-      _dclickValue1 = 0.0;
-      _dclickValue2 = 0.0;
       if (orient == Qt::Vertical)
       	setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
       else
@@ -103,8 +100,8 @@ void Slider::updateKnob()
     	int kw  = _sliderSize.width();
       points->moveTo(0.0, 0.0);
       if (orient == Qt::Vertical) {
-      	int kh  = _sliderSize.height();
-            int kh2  = kh / 2;
+      	   int kh1  = _sliderSize.height();
+            int kh2  = kh1 / 2;
             points->lineTo(kw, -kh2);
             points->lineTo(kw, kh2);
             }
@@ -144,7 +141,7 @@ void Slider::mousePressEvent(QMouseEvent* ev)
       {
       startDrag = ev->pos();
 //      if (points->boundingRect().toRect().contains(startDrag)) {
-            emit sliderPressed(_id);
+            emit sliderPressed(__id);
             dragMode = true;
             int pixel = (orient == Qt::Vertical) ? height() - _sliderSize.height() : width() - _sliderSize.width();
             dragppos = int(pixel * (_value - minValue()) / (maxValue() - minValue()));
@@ -160,7 +157,7 @@ void Slider::mousePressEvent(QMouseEvent* ev)
 void Slider::mouseReleaseEvent(QMouseEvent*)
       {
       if (dragMode) {
-            emit sliderReleased(_id);
+            emit sliderReleased(__id);
             dragMode = false;
             }
       }

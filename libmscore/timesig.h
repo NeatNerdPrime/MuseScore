@@ -36,22 +36,14 @@ enum class TimeSigType : char {
 //---------------------------------------------------------------------------------------
 //   @@ TimeSig
 ///    This class represents a time signature.
-//
-//   @P denominator         int           (read only)
-//   @P denominatorStretch  int           (read only)
-//   @P denominatorString   string        text of denominator
-//   @P groups              Groups
-//   @P numerator           int           (read only)
-//   @P numeratorStretch    int           (read only)
-//   @P numeratorString     string        text of numerator
-//   @P showCourtesySig     bool          show courtesy time signature for this sig if appropriate
 //---------------------------------------------------------------------------------------
 
-class TimeSig : public Element {
-      Q_GADGET
-
+class TimeSig final : public Element {
       QString _numeratorString;     // calculated from actualSig() if !customText
       QString _denominatorString;
+
+      std::vector<SymId> ns;
+      std::vector<SymId> ds;
 
       QPointF pz;
       QPointF pn;
@@ -64,11 +56,7 @@ class TimeSig : public Element {
       QSizeF _scale;
       TimeSigType _timeSigType;
       bool _showCourtesySig;
-      bool customText;        // if false, sz and sn are calculated from _sig
       bool _largeParentheses;
-      PropertyFlags scaleStyle;
-
-      void layout1();
 
    public:
       TimeSig(Score* = 0);
@@ -82,12 +70,14 @@ class TimeSig : public Element {
       TimeSigType timeSigType() const    { return _timeSigType; }
 
       bool operator==(const TimeSig&) const;
+      bool operator!=(const TimeSig& ts) const { return !(*this == ts); }
 
       virtual qreal mag() const override;
       virtual void draw(QPainter*) const override;
       virtual void write(XmlWriter& xml) const override;
       virtual void read(XmlReader&) override;
       virtual void layout() override;
+      virtual Shape shape() const override;
 
       Fraction sig() const               { return _sig; }
       void setSig(const Fraction& f, TimeSigType st = TimeSigType::NORMAL);
@@ -121,14 +111,10 @@ class TimeSig : public Element {
 
       void setFrom(const TimeSig*);
 
-      virtual QVariant getProperty(P_ID propertyId) const override;
-      virtual bool setProperty(P_ID propertyId, const QVariant&) override;
-      virtual QVariant propertyDefault(P_ID id) const override;
-      virtual StyleIdx getPropertyStyle(P_ID id) const override;
-      virtual void styleChanged() override;
-      virtual PropertyFlags propertyFlags(P_ID id) const override;
-
-      bool hasCustomText() const { return customText; }
+      virtual QVariant getProperty(Pid propertyId) const override;
+      virtual bool setProperty(Pid propertyId, const QVariant&) override;
+      virtual QVariant propertyDefault(Pid id) const override;
+      virtual Pid propertyId(const QStringRef& xmlName) const override;
 
       const Groups& groups() const    { return _groups; }
       void setGroups(const Groups& e) { _groups = e; }
@@ -138,8 +124,8 @@ class TimeSig : public Element {
 
       bool isLocal() const                 { return _stretch != Fraction(1,1); }
 
-      virtual Element* nextElement();
-      virtual Element* prevElement();
+      virtual Element* nextSegmentElement();
+      virtual Element* prevSegmentElement();
       virtual QString accessibleInfo() const override;
       };
 

@@ -8,8 +8,6 @@
 
 namespace Ms {
 
-extern Preferences preferences;
-
 namespace LRHand {
 
 bool needToSplit(const std::multimap<ReducedFraction, MidiChord> &chords,
@@ -97,7 +95,7 @@ void splitChords(
 
       int splitPoint = findLastSplitPoint(splits);
 
-      for (int pos = splits.size() - 1; ; --pos) {
+      for (size_t pos = splits.size() - 1; ; --pos) {
             MidiChord &oldChord = splits[pos].chord->second;
             MidiChord newChord(oldChord);
 
@@ -393,7 +391,7 @@ void splitIntoLeftRightHands(std::multimap<int, MTrack> &tracks)
       for (auto it = tracks.begin(); it != tracks.end(); ++it) {
             if (it->second.mtrack->drumTrack() || it->second.chords.empty())
                   continue;
-            const auto &opers = preferences.midiImportOperations.data()->trackOpers;
+            const auto &opers = midiImportOperations.data()->trackOpers;
                         // iterator 'it' will change after track split to ++it
                         // C++11 guarantees that newely inserted item with equal key will go after:
                         //    "The relative ordering of elements with equivalent keys is preserved,

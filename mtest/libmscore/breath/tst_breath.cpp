@@ -1,7 +1,6 @@
 //=============================================================================
 //  MuseScore
 //  Music Composition & Notation
-//  $Id:$
 //
 //  Copyright (C) 2012 Werner Schweer
 //
@@ -64,11 +63,11 @@ void TestBreath::breath()
       score->startCmd();
       score->cmdSelectAll();
       for (Element* e : score->selection().elements()) {
-            EditData dd;
+            EditData dd(0);
             dd.view = 0;
             Breath* b = new Breath(score);
             b->setSymId(SymId::breathMarkComma);
-            dd.element = b;
+            dd.dropElement = b;
             if (e->acceptDrop(dd))
                   e->drop(dd);
           }

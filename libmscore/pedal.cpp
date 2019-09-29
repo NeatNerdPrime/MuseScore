@@ -16,10 +16,33 @@
 #include "system.h"
 #include "measure.h"
 #include "chordrest.h"
+#include "staff.h"
 
 #include "score.h"
 
 namespace Ms {
+
+static const ElementStyle pedalStyle {
+      { Sid::pedalFontFace,                      Pid::BEGIN_FONT_FACE         },
+      { Sid::pedalFontFace,                      Pid::CONTINUE_FONT_FACE      },
+      { Sid::pedalFontFace,                      Pid::END_FONT_FACE           },
+      { Sid::pedalFontSize,                      Pid::BEGIN_FONT_SIZE         },
+      { Sid::pedalFontSize,                      Pid::CONTINUE_FONT_SIZE      },
+      { Sid::pedalFontSize,                      Pid::END_FONT_SIZE           },
+      { Sid::pedalFontStyle,                     Pid::BEGIN_FONT_STYLE        },
+      { Sid::pedalFontStyle,                     Pid::CONTINUE_FONT_STYLE     },
+      { Sid::pedalFontStyle,                     Pid::END_FONT_STYLE          },
+      { Sid::pedalTextAlign,                     Pid::BEGIN_TEXT_ALIGN        },
+      { Sid::pedalTextAlign,                     Pid::CONTINUE_TEXT_ALIGN     },
+      { Sid::pedalTextAlign,                     Pid::END_TEXT_ALIGN          },
+      { Sid::pedalHookHeight,                    Pid::BEGIN_HOOK_HEIGHT       },
+      { Sid::pedalHookHeight,                    Pid::END_HOOK_HEIGHT         },
+      { Sid::pedalBeginTextOffset,               Pid::BEGIN_TEXT_OFFSET       },
+      { Sid::pedalBeginTextOffset,               Pid::CONTINUE_TEXT_OFFSET    },
+      { Sid::pedalBeginTextOffset,               Pid::END_TEXT_OFFSET         },
+      { Sid::pedalPlacement,                     Pid::PLACEMENT               },
+      { Sid::pedalPosBelow,                      Pid::OFFSET                  },
+      };
 
 //---------------------------------------------------------
 //   layout
@@ -27,29 +50,28 @@ namespace Ms {
 
 void PedalSegment::layout()
       {
-      if (autoplace())
-            setUserOff(QPointF());
       TextLineBaseSegment::layout();
-      if (parent()) {     // for palette
-            rypos() += score()->styleP(pedal()->placeBelow() ? StyleIdx::pedalPosBelow : StyleIdx::pedalPosAbove);
-            if (autoplace()) {
-                  qreal minDistance = spatium() * .7;
-                  Shape s1 = shape().translated(pos());
+      if (isStyled(Pid::OFFSET))
+            roffset() = pedal()->propertyDefault(Pid::OFFSET).toPointF();
+      autoplaceSpannerSegment();
+      }
 
-                  if (pedal()->placeBelow()) {
-                        qreal d  = system()->bottomDistance(staffIdx(), s1);
-                        if (d > -minDistance)
-                              rUserYoffset() = d + minDistance;
-                        }
-                  else {
-                        qreal d  = system()->topDistance(staffIdx(), s1);
-                        if (d > -minDistance)
-                              rUserYoffset() = -(d + minDistance);
-                        }
-                  }
-            else
-                  adjustReadPos();
-            }
+//---------------------------------------------------------
+//   getPropertyStyle
+//---------------------------------------------------------
+
+Sid PedalSegment::getPropertyStyle(Pid pid) const
+      {
+      if (pid == Pid::OFFSET)
+            return spanner()->placeAbove() ? Sid::pedalPosAbove : Sid::pedalPosBelow;
+      return TextLineBaseSegment::getPropertyStyle(pid);
+      }
+
+Sid Pedal::getPropertyStyle(Pid pid) const
+      {
+      if (pid == Pid::OFFSET)
+            return placeAbove() ? Sid::pedalPosAbove : Sid::pedalPosBelow;
+      return TextLineBase::getPropertyStyle(pid);
       }
 
 //---------------------------------------------------------
@@ -59,11 +81,19 @@ void PedalSegment::layout()
 Pedal::Pedal(Score* s)
    : TextLineBase(s)
       {
-//      setBeginHookHeight(Spatium(-1.2));
-//      setEndHookHeight(Spatium(-1.2));
+      initElementStyle(&pedalStyle);
+      setLineVisible(true);
+      resetProperty(Pid::BEGIN_TEXT);
+      resetProperty(Pid::END_TEXT);
 
-      setLineWidth(score()->styleS(StyleIdx::pedalLineWidth));
-      setLineStyle(Qt::PenStyle(score()->styleI(StyleIdx::pedalLineStyle)));
+      resetProperty(Pid::LINE_WIDTH);
+      resetProperty(Pid::LINE_STYLE);
+
+      resetProperty(Pid::BEGIN_HOOK_TYPE);
+      resetProperty(Pid::END_HOOK_TYPE);
+
+      resetProperty(Pid::BEGIN_TEXT_PLACE);
+      resetProperty(Pid::LINE_VISIBLE);
       }
 
 //---------------------------------------------------------
@@ -72,8 +102,8 @@ Pedal::Pedal(Score* s)
 
 void Pedal::read(XmlReader& e)
       {
-      int id = e.intAttribute("id", -1);
-      e.addSpanner(id, this);
+      if (score()->mscVersion() < 301)
+            e.addSpanner(e.intAttribute("id", -1), this);
       while (e.readNextStartElement()) {
             if (!TextLineBase::readProperties(e))
                   e.unknown();
@@ -81,45 +111,81 @@ void Pedal::read(XmlReader& e)
       }
 
 //---------------------------------------------------------
+//   write
+//---------------------------------------------------------
+
+void Pedal::write(XmlWriter& xml) const
+      {
+      if (!xml.canWrite(this))
+            return;
+      xml.stag(this);
+
+      for (auto i : {
+         Pid::END_HOOK_TYPE,
+         Pid::BEGIN_TEXT,
+         Pid::END_TEXT,
+         Pid::LINE_VISIBLE,
+         Pid::BEGIN_HOOK_TYPE
+         }) {
+            writeProperty(xml, i);
+            }
+      for (const StyledProperty& spp : *styledProperties())
+            writeProperty(xml, spp.pid);
+
+      SLine::writeProperties(xml);
+      xml.etag();
+      }
+
+
+//---------------------------------------------------------
 //   createLineSegment
 //---------------------------------------------------------
 
+static const ElementStyle pedalSegmentStyle {
+      { Sid::pedalPosBelow, Pid::OFFSET },
+      { Sid::pedalMinDistance, Pid::MIN_DISTANCE },
+      };
+
 LineSegment* Pedal::createLineSegment()
       {
-      return new PedalSegment(score());
-      }
-
-//---------------------------------------------------------
-//   setYoff
-//---------------------------------------------------------
-
-void Pedal::setYoff(qreal val)
-      {
-      rUserYoffset() += val * spatium() - score()->styleP(placeAbove() ? StyleIdx::pedalPosAbove : StyleIdx::pedalPosBelow);
+      PedalSegment* p = new PedalSegment(this, score());
+      p->setTrack(track());
+      p->initElementStyle(&pedalSegmentStyle);
+      return p;
       }
 
 //---------------------------------------------------------
 //   propertyDefault
 //---------------------------------------------------------
 
-QVariant Pedal::propertyDefault(P_ID propertyId) const
+QVariant Pedal::propertyDefault(Pid propertyId) const
       {
       switch (propertyId) {
-            case P_ID::LINE_WIDTH:
-                  return score()->styleV(StyleIdx::pedalLineWidth);
+            case Pid::LINE_WIDTH:
+                  return score()->styleP(Sid::pedalLineWidth);    // return point, not spatium
 
-            case P_ID::ALIGN:
-                  return QVariant::fromValue(Align::LEFT | Align::BASELINE);
+            case Pid::LINE_STYLE:
+                  return score()->styleV(Sid::pedalLineStyle);
 
-            case P_ID::LINE_STYLE:
-                  return int(score()->styleI(StyleIdx::pedalLineStyle));
+            case Pid::BEGIN_TEXT:
+            case Pid::CONTINUE_TEXT:
+            case Pid::END_TEXT:
+                  return "";
 
-            case P_ID::BEGIN_TEXT_OFFSET:
-                  return score()->styleV(StyleIdx::pedalBeginTextOffset).toPointF();
+            case Pid::BEGIN_TEXT_PLACE:
+            case Pid::CONTINUE_TEXT_PLACE:
+            case Pid::END_TEXT_PLACE:
+                  return int(PlaceText::LEFT);
 
-            case P_ID::BEGIN_HOOK_HEIGHT:
-            case P_ID::END_HOOK_HEIGHT:
-                  return Spatium(-1.2);
+            case Pid::BEGIN_HOOK_TYPE:
+            case Pid::END_HOOK_TYPE:
+                  return int(HookType::NONE);
+
+            case Pid::LINE_VISIBLE:
+                  return true;
+
+            case Pid::PLACEMENT:
+                  return score()->styleV(Sid::pedalPlacement);
 
             default:
                   return TextLineBase::propertyDefault(propertyId);
@@ -133,21 +199,23 @@ QVariant Pedal::propertyDefault(P_ID propertyId) const
 
 QPointF Pedal::linePos(Grip grip, System** sys) const
       {
-      qreal x;
+      qreal x = 0.0;
       qreal nhw = score()->noteHeadWidth();
       System* s = nullptr;
       if (grip == Grip::START) {
-            ChordRest* c = static_cast<ChordRest*>(startElement());
-            s = c->segment()->system();
-            x = c->pos().x() + c->segment()->pos().x() + c->segment()->measure()->pos().x();
-            if (c->type() == ElementType::REST && c->durationType() == TDuration::DurationType::V_MEASURE)
-                  x -= c->x();
-            if (beginHookType() == HookType::HOOK_45)
-                  x += nhw * .5;
+            ChordRest* c = toChordRest(startElement());
+            if (c) {
+                  s = c->segment()->system();
+                  x = c->pos().x() + c->segment()->pos().x() + c->segment()->measure()->pos().x();
+                  if (c->type() == ElementType::REST && c->durationType() == TDuration::DurationType::V_MEASURE)
+                        x -= c->x();
+                  if (beginHookType() == HookType::HOOK_45)
+                        x += nhw * .5;
+                  }
             }
       else {
             Element* e = endElement();
-            ChordRest* c = static_cast<ChordRest*>(endElement());
+            ChordRest* c = toChordRest(endElement());
             if (!e || e == startElement() || (endHookType() == HookType::HOOK_90)) {
                   // pedal marking on single note or ends with non-angled hook:
                   // extend to next note or end of measure
@@ -173,6 +241,14 @@ QPointF Pedal::linePos(Grip grip, System** sys) const
                                           break;
                                     }
                               else if (seg->segmentType() == SegmentType::EndBarLine) {
+                                    if (!seg->enabled()) {
+                                          // disabled barline layout is not reliable
+                                          // use width of measure instead
+                                          Measure* m = seg->measure();
+                                          s = seg->system();
+                                          x = m->width() + m->pos().x() - nhw * 2;
+                                          seg = nullptr;
+                                          }
                                     break;
                                     }
                               }
@@ -189,7 +265,7 @@ QPointF Pedal::linePos(Grip grip, System** sys) const
                         x -= c->x();
                   }
             if (!s) {
-                  int t = tick2();
+                  Fraction t = tick2();
                   Measure* m = score()->tick2measure(t);
                   s = m->system();
                   x = m->tick2pos(t);

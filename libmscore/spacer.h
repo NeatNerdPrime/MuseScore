@@ -30,9 +30,7 @@ enum class SpacerType : char {
 ///    Vertical spacer element to adjust the distance of staves.
 //-------------------------------------------------------------------
 
-class Spacer : public Element {
-      Q_GADGET
-
+class Spacer final : public Element {
       SpacerType _spacerType;
       qreal _gap;
 
@@ -53,15 +51,16 @@ class Spacer : public Element {
       virtual void draw(QPainter*) const;
       virtual bool isEditable() const { return true; }
       virtual void startEdit(EditData&) override;
+      virtual void startEditDrag(EditData&) override;
       virtual void editDrag(EditData&) override;
       virtual void updateGrips(EditData&) const override;
       virtual void spatiumChanged(qreal, qreal);
       void setGap(qreal sp);
       qreal gap() const     { return _gap; }
 
-      QVariant getProperty(P_ID propertyId) const;
-      bool setProperty(P_ID propertyId, const QVariant&);
-      QVariant propertyDefault(P_ID id) const;
+      QVariant getProperty(Pid propertyId) const;
+      bool setProperty(Pid propertyId, const QVariant&);
+      QVariant propertyDefault(Pid id) const;
       };
 
 

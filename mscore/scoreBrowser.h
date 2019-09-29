@@ -39,6 +39,9 @@ class ScoreListWidget : public QListWidget
       int cellHeight() const { return CELLH; }
       int space() const { return SPACE; }
       QSize cellSize() const { return QSize(CELLW, CELLH); }
+
+      // override so we pass wheel event to the parent scroll area
+      virtual void wheelEvent(QWheelEvent*) {};
       };
 
 //---------------------------------------------------------
@@ -55,12 +58,13 @@ class ScoreBrowser : public QWidget, public Ui::ScoreBrowser
                                           //             - single click action
       bool _boldTitle     { false };      // score title are displayed in bold
       bool _showCustomCategory  { false };// show a custom category for files
+      QLabel* _noMatchedScoresLabel;      // displayed when no scores are matching the search
 
       ScoreListWidget* createScoreList();
       ScoreItem* genScoreItem(const QFileInfo&, ScoreListWidget*);
 
    private slots:
-      void scoreChanged(QListWidgetItem*);
+      void scoreClicked(QListWidgetItem*);
       void setScoreActivated(QListWidgetItem*);
 
    signals:
@@ -76,6 +80,7 @@ class ScoreBrowser : public QWidget, public Ui::ScoreBrowser
       void selectLast();
       void setBoldTitle(bool bold) { _boldTitle = bold; }
       void setShowCustomCategory(bool showCustomCategory) { _showCustomCategory = showCustomCategory; }
+      void filter(const QString&);
       };
 }
 

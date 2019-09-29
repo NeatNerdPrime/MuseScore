@@ -62,7 +62,7 @@ void Spacer::layout0()
       path    = QPainterPath();
       qreal w = _spatium;
       qreal b = w * .5;
-      qreal h = _gap;
+      qreal h = parent() ? _gap : qMin(_gap, spatium() * 4.0);    // limit length for palette
 
       switch (spacerType()) {
             case SpacerType::DOWN:
@@ -122,8 +122,19 @@ void Spacer::spatiumChanged(qreal ov, qreal nv)
 
 void Spacer::startEdit(EditData& ed)
       {
+      Element::startEdit(ed);
       ed.grips   = 1;
       ed.curGrip = Grip::START;
+      }
+
+//---------------------------------------------------------
+//   startEditDrag
+//---------------------------------------------------------
+
+void Spacer::startEditDrag(EditData& ed)
+      {
+      ElementEditData* eed = ed.getData(this);
+      eed->pushProperty(Pid::SPACE);
       }
 
 //---------------------------------------------------------
@@ -146,7 +157,7 @@ void Spacer::editDrag(EditData& ed)
       if (_gap < spatium() * 2.0)
             _gap = spatium() * 2;
       layout0();
-      score()->setLayoutAll();
+      triggerLayout();
       }
 
 //---------------------------------------------------------
@@ -175,7 +186,7 @@ void Spacer::updateGrips(EditData& ed) const
 
 void Spacer::write(XmlWriter& xml) const
       {
-      xml.stag(name());
+      xml.stag(this);
       xml.tag("subtype", int(_spacerType));
       Element::writeProperties(xml);
       xml.tag("space", _gap / spatium());
@@ -204,10 +215,10 @@ void Spacer::read(XmlReader& e)
 //   getProperty
 //---------------------------------------------------------
 
-QVariant Spacer::getProperty(P_ID propertyId) const
+QVariant Spacer::getProperty(Pid propertyId) const
       {
       switch (propertyId) {
-            case P_ID::SPACE:
+            case Pid::SPACE:
                   return gap();
             default:
                   return Element::getProperty(propertyId);
@@ -218,10 +229,10 @@ QVariant Spacer::getProperty(P_ID propertyId) const
 //   setProperty
 //---------------------------------------------------------
 
-bool Spacer::setProperty(P_ID propertyId, const QVariant& v)
+bool Spacer::setProperty(Pid propertyId, const QVariant& v)
       {
       switch (propertyId) {
-            case P_ID::SPACE:
+            case Pid::SPACE:
                   setGap(v.toDouble());
                   break;
             default:
@@ -230,7 +241,7 @@ bool Spacer::setProperty(P_ID propertyId, const QVariant& v)
                   break;
             }
       layout0();
-      score()->setLayoutAll();
+      triggerLayout();
       setGenerated(false);
       return true;
       }
@@ -239,10 +250,10 @@ bool Spacer::setProperty(P_ID propertyId, const QVariant& v)
 //   propertyDefault
 //---------------------------------------------------------
 
-QVariant Spacer::propertyDefault(P_ID id) const
+QVariant Spacer::propertyDefault(Pid id) const
       {
       switch (id) {
-            case P_ID::SPACE:
+            case Pid::SPACE:
                   return QVariant(0.0);
             default:
                   return Element::propertyDefault(id);

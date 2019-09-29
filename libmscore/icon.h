@@ -23,9 +23,7 @@ namespace Ms {
 //    dummy element, used for drag&drop
 //---------------------------------------------------------
 
-class Icon : public Element {
-      Q_GADGET
-
+class Icon final : public Element {
       IconType _iconType { IconType::NONE };
       QByteArray _action;
       QIcon _icon;
@@ -48,6 +46,9 @@ class Icon : public Element {
       virtual void read(XmlReader&) override;
       virtual void draw(QPainter*) const override;
       virtual void layout() override;
+
+      QVariant getProperty(Pid) const override;
+      bool setProperty(Pid, const QVariant&) override;
       };
 
 

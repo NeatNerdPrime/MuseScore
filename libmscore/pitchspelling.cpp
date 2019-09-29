@@ -246,7 +246,7 @@ void tpc2name(int tpc, NoteSpellingType noteSpelling, NoteCaseType noteCase, QSt
       switch (n) {
             case -2:
                   if (explicitAccidental) {
-                        acc = QObject::tr("double flat");
+                        acc = QObject::tr("double ♭");
                         }
                   else if (noteSpelling == NoteSpellingType::GERMAN_PURE) {
                         switch (tpc) {
@@ -261,7 +261,7 @@ void tpc2name(int tpc, NoteSpellingType noteSpelling, NoteCaseType noteCase, QSt
                   break;
             case -1:
                   if (explicitAccidental)
-                        acc = QObject::tr("flat");
+                        acc = QObject::tr("♭");
                   else if (noteSpelling == NoteSpellingType::GERMAN_PURE)
                         acc = (tpc == TPC_A_B || tpc == TPC_E_B) ? "s" : "es";
                   else
@@ -270,13 +270,13 @@ void tpc2name(int tpc, NoteSpellingType noteSpelling, NoteCaseType noteCase, QSt
             case  0: acc = ""; break;
             case  1:
                   if (explicitAccidental)
-                        acc = QObject::tr("sharp");
+                        acc = QObject::tr("♯");
                   else
                         acc = (noteSpelling == NoteSpellingType::GERMAN_PURE) ? "is" : "#";
                   break;
             case  2:
                   if (explicitAccidental)
-                        acc = QObject::tr("double sharp");
+                        acc = QObject::tr("double ♯");
                   else
                         acc = (noteSpelling == NoteSpellingType::GERMAN_PURE) ? "isis" : "##";
                   break;
@@ -533,60 +533,6 @@ static const int ASIZE        = 1024;   // 2 ** WINDOW
 #endif
 
 //---------------------------------------------------------
-//   computeWindow
-//---------------------------------------------------------
-
-static int computeWindow(const std::vector<Event>& notes, int start, int end, int keyIdx)
-      {
-      int p   = 10000;
-      int idx = -1;
-      int pitch[10];
-
-      Q_ASSERT((end-start) < 10 && start != end);
-
-      int i = start;
-      int k = 0;
-      while (i < end)
-            pitch[k++] = notes[i++].dataA() % 12;
-
-      for (; k < 10; ++k)
-            pitch[k] = pitch[k-1];
-
-      for (int i = 0; i < 512; ++i) {
-            int pa    = 0;
-            int pb    = 0;
-            int l     = pitch[0] * 2 + (i & 1);
-            Q_ASSERT((l >= 0) && (l < int(sizeof(tab1)/sizeof(*tab1))));
-            int lof1a = tab1[l];
-            int lof1b = tab2[l];
-
-            for (int k = 1; k < 10; ++k) {
-                  int l = pitch[k] * 2 + ((i & (1 << k)) >> k);
-                  Q_ASSERT((l >= 0) && (l < int(sizeof(tab1)/sizeof(*tab1))));
-                  int lof2a = tab1[l];
-                  int lof2b = tab2[l];
-                  pa += penalty(lof1a, lof2a, keyIdx);
-                  pb += penalty(lof1b, lof2b, keyIdx);
-                  lof1a = lof2a;
-                  lof1b = lof2b;
-                  }
-            if (pa < pb) {
-                  if (pa < p) {
-                        p   = pa;
-                        idx = i;
-                        }
-                  }
-            else {
-                  if (pb < p) {
-                        p   = pb;
-                        idx = i * -1;
-                        }
-                  }
-            }
-      return idx;
-      }
-
-//---------------------------------------------------------
 //   tpc
 //---------------------------------------------------------
 
@@ -619,11 +565,11 @@ int computeWindow(const std::vector<Note*>& notes, int start, int end)
       int k = 0;
       while (i < end) {
             pitch[k] = notes[i]->pitch() % 12;
-            int tick = notes[i]->chord()->tick();
+            Fraction tick = notes[i]->chord()->tick();
             key[k]   = int(notes[i]->staff()->key(tick)) + 7;
             if (key[k] < 0 || key[k] > 14) {
                   qDebug("illegal key at tick %d: %d, window %d-%d",
-                     tick, key[k] - 7, start, end);
+                     tick.ticks(), key[k] - 7, start, end);
                   return 0;
                   // abort();
                   }
@@ -636,7 +582,7 @@ int computeWindow(const std::vector<Note*>& notes, int start, int end)
             key[k]   = key[k-1];
             }
 
-      for (int i = 0; i < 512; ++i) {
+      for (i = 0; i < 512; ++i) {
             int pa    = 0;
             int pb    = 0;
             int l     = pitch[0] * 2 + (i & 1);
@@ -644,11 +590,11 @@ int computeWindow(const std::vector<Note*>& notes, int start, int end)
             int lof1a = tab1[l];
             int lof1b = tab2[l];
 
-            for (int k = 1; k < 10; ++k) {
-                  int l = pitch[k] * 2 + ((i & (1 << k)) >> k);
-                  Q_ASSERT(l >= 0 && l <= (int)(sizeof(tab1)/sizeof(*tab1)));
-                  int lof2a = tab1[l];
-                  int lof2b = tab2[l];
+            for (k = 1; k < 10; ++k) {
+                  int l1 = pitch[k] * 2 + ((i & (1 << k)) >> k);
+                  Q_ASSERT(l1 >= 0 && l1 <= (int)(sizeof(tab1)/sizeof(*tab1)));
+                  int lof2a = tab1[l1];
+                  int lof2b = tab2[l1];
                   pa += penalty(lof1a, lof2a, key[k]);
                   pb += penalty(lof1b, lof2b, key[k]);
                   lof1a = lof2a;
@@ -681,79 +627,20 @@ int computeWindow(const std::vector<Note*>& notes, int start, int end)
       }
 
 //---------------------------------------------------------
-//   spell
-//---------------------------------------------------------
-
-void spell(std::vector<Event>& notes, int key)
-      {
-      key += 7;
-
-      int n = notes.size();
-      if (n == 0)
-            return;
-
-      int start = 0;
-      while (start < n) {
-            int end = start + WINDOW;
-            if (end > n)
-                  end = n;
-            int opt = computeWindow(notes, start, end, key);
-            const int* tab;
-            if (opt < 0) {
-                  tab = tab2;
-                  opt *= -1;
-                  }
-            else
-                  tab = tab1;
-
-            if (start == 0) {
-                  notes[0].setTpc(tab[(notes[0].dataA() % 12) * 2 + (opt & 1)]);
-                  if (n > 1)
-                        notes[1].setTpc(tab[(notes[1].dataA() % 12) * 2 + ((opt & 2)>>1)]);
-                  if (n > 2)
-                        notes[2].setTpc(tab[(notes[2].dataA() % 12) * 2 + ((opt & 4)>>2)]);
-                  }
-            if ((end - start) >= 6) {
-                  notes[start+3].setTpc(tab[(notes[start+3].dataA() % 12) * 2 + ((opt &  8) >> 3)]);
-                  notes[start+4].setTpc(tab[(notes[start+4].dataA() % 12) * 2 + ((opt & 16) >> 4)]);
-                  notes[start+5].setTpc(tab[(notes[start+5].dataA() % 12) * 2 + ((opt & 32) >> 5)]);
-                  }
-            if (end == n) {
-                  int n = end - start;
-                  int k;
-                  switch(n - 6) {
-                        case 3:
-                              k = end - start - 3;
-                              notes[end-3].setTpc(tab[(notes[end-3].dataA() % 12) * 2 + ((opt & (1<<k)) >> k)]);
-                        case 2:
-                              k = end - start - 2;
-                              notes[end-2].setTpc(tab[(notes[end-2].dataA() % 12) * 2 + ((opt & (1<<k)) >> k)]);
-                        case 1:
-                              k = end - start - 1;
-                              notes[end-1].setTpc(tab[(notes[end-1].dataA() % 12) * 2 + ((opt & (1<<k)) >> k)]);
-                        }
-                  break;
-                  }
-            // advance to next window
-            start += 3;
-            }
-      }
-
-//---------------------------------------------------------
 //   changeAllTpcs
 //---------------------------------------------------------
 
 void changeAllTpcs(Note* n, int tpc1)
       {
       Interval v;
-      int tick = n && n->chord() ? n->chord()->tick() : -1;
+      Fraction tick = n && n->chord() ? n->chord()->tick() : Fraction(-1,1);
       if (n && n->part() && n->part()->instrument()) {
             v = n->part()->instrument(tick)->transpose();
             v.flip();
             }
       int tpc2 = Ms::transposeTpc(tpc1, v, true);
-      n->undoChangeProperty(P_ID::TPC1, tpc1);
-      n->undoChangeProperty(P_ID::TPC2, tpc2);
+      n->undoChangeProperty(Pid::TPC1, tpc1);
+      n->undoChangeProperty(Pid::TPC2, tpc2);
       }
 
 //---------------------------------------------------------
@@ -762,7 +649,7 @@ void changeAllTpcs(Note* n, int tpc1)
 
 void Score::spellNotelist(std::vector<Note*>& notes)
       {
-      int n = notes.size();
+      int n = int(notes.size());
 
       int start = 0;
       while (start < n) {
@@ -791,15 +678,17 @@ void Score::spellNotelist(std::vector<Note*>& notes)
                   changeAllTpcs(notes[start+5], tab[(notes[start+5]->pitch() % 12) * 2 + ((opt & 32) >> 5)]);
                   }
             if (end == n) {
-                  int n = end - start;
+                  int n1 = end - start;
                   int k;
-                  switch(n - 6) {
+                  switch(n1 - 6) {
                         case 3:
                               k = end - start - 3;
                               changeAllTpcs(notes[end-3], tab[(notes[end-3]->pitch() % 12) * 2 + ((opt & (1<<k)) >> k)]);
+                              // FALLTHROUGH
                         case 2:
                               k = end - start - 2;
                               changeAllTpcs(notes[end-2], tab[(notes[end-2]->pitch() % 12) * 2 + ((opt & (1<<k)) >> k)]);
+                              // FALLTHROUGH
                         case 1:
                               k = end - start - 1;
                               changeAllTpcs(notes[end-1], tab[(notes[end-1]->pitch() % 12) * 2 + ((opt & (1<<k)) >> k)]);

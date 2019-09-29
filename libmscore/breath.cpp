@@ -17,6 +17,7 @@
 #include "measure.h"
 #include "score.h"
 #include "xml.h"
+#include "staff.h"
 
 namespace Ms {
 
@@ -25,10 +26,10 @@ const std::vector<BreathType> Breath::breathList {
       { SymId::breathMarkTick,       false, 0.0 },
       { SymId::breathMarkSalzedo,    false, 0.0 },
       { SymId::breathMarkUpbow,      false, 0.0 },
-      { SymId::caesuraCurved,        true,  0.0 },
-      { SymId::caesura,              true,  0.0 },
-      { SymId::caesuraShort,         true,  0.0 },
-      { SymId::caesuraThick,         true,  0.0 },
+      { SymId::caesuraCurved,        true,  2.0 },
+      { SymId::caesura,              true,  2.0 },
+      { SymId::caesuraShort,         true,  2.0 },
+      { SymId::caesuraThick,         true,  2.0 },
       };
 
 //---------------------------------------------------------
@@ -36,11 +37,10 @@ const std::vector<BreathType> Breath::breathList {
 //---------------------------------------------------------
 
 Breath::Breath(Score* s)
-  : Element(s)
+   : Element(s, ElementFlag::MOVABLE)
       {
       _symId = SymId::breathMarkComma;
       _pause = 0.0;
-      setFlags(ElementFlag::MOVABLE | ElementFlag::SELECTABLE);
       }
 
 //---------------------------------------------------------
@@ -62,10 +62,15 @@ bool Breath::isCaesura() const
 
 void Breath::layout()
       {
-      if (isCaesura())
-            setPos(x(), spatium());
-      else
-            setPos(x(), -0.5 * spatium());
+      bool palette = (track() == -1);
+      if (!palette) {
+            if (isCaesura())
+                  setPos(rxpos(), spatium());
+            else if ((score()->styleSt(Sid::MusicalSymbolFont) == "Emmentaler") && (symId() == SymId::breathMarkComma))
+                  setPos(rxpos(), 0.5 * spatium());
+            else
+                  setPos(rxpos(), -0.5 * spatium());
+            }
       setbbox(symBbox(_symId));
       }
 
@@ -77,9 +82,9 @@ void Breath::write(XmlWriter& xml) const
       {
       if (!xml.canWrite(this))
             return;
-      xml.stag("Breath");
-      writeProperty(xml, P_ID::SYMBOL);
-      writeProperty(xml, P_ID::PAUSE);
+      xml.stag(this);
+      writeProperty(xml, Pid::SYMBOL);
+      writeProperty(xml, Pid::PAUSE);
       Element::writeProperties(xml);
       xml.etag();
       }
@@ -116,6 +121,15 @@ void Breath::read(XmlReader& e)
       }
 
 //---------------------------------------------------------
+//   mag
+//---------------------------------------------------------
+
+qreal Breath::mag() const
+      {
+      return staff() ? staff()->mag(tick()) : 1.0;
+      }
+
+//---------------------------------------------------------
 //   draw
 //---------------------------------------------------------
 
@@ -144,12 +158,12 @@ QPointF Breath::pagePos() const
 //   getProperty
 //---------------------------------------------------------
 
-QVariant Breath::getProperty(P_ID propertyId) const
+QVariant Breath::getProperty(Pid propertyId) const
       {
       switch (propertyId) {
-            case P_ID::SYMBOL:
+            case Pid::SYMBOL:
                   return QVariant::fromValue(_symId);
-            case P_ID::PAUSE:
+            case Pid::PAUSE:
                   return _pause;
             default:
                   return Element::getProperty(propertyId);
@@ -160,14 +174,14 @@ QVariant Breath::getProperty(P_ID propertyId) const
 //   setProperty
 //---------------------------------------------------------
 
-bool Breath::setProperty(P_ID propertyId, const QVariant& v)
+bool Breath::setProperty(Pid propertyId, const QVariant& v)
       {
       switch (propertyId) {
-            case P_ID::SYMBOL:
+            case Pid::SYMBOL:
                   setSymId(v.value<SymId>());
                   break;
 
-            case P_ID::PAUSE:
+            case Pid::PAUSE:
                   setPause(v.toDouble());
                   break;
             default:
@@ -184,10 +198,10 @@ bool Breath::setProperty(P_ID propertyId, const QVariant& v)
 //   propertyDefault
 //---------------------------------------------------------
 
-QVariant Breath::propertyDefault(P_ID id) const
+QVariant Breath::propertyDefault(Pid id) const
       {
       switch(id) {
-            case P_ID::PAUSE:
+            case Pid::PAUSE:
                   return 0.0;
             default:
                   return Element::propertyDefault(id);
@@ -195,19 +209,19 @@ QVariant Breath::propertyDefault(P_ID id) const
       }
 
 //---------------------------------------------------------
-//   nextElement
+//   nextSegmentElement
 //---------------------------------------------------------
 
-Element* Breath::nextElement()
+Element* Breath::nextSegmentElement()
       {
       return segment()->firstInNextSegments(staffIdx());
       }
 
 //---------------------------------------------------------
-//   prevElement
+//   prevSegmentElement
 //---------------------------------------------------------
 
-Element* Breath::prevElement()
+Element* Breath::prevSegmentElement()
       {
       return segment()->lastInPrevSegments(staffIdx());
       }
