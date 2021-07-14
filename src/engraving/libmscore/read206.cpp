@@ -22,6 +22,8 @@
 
 #include <cmath>
 
+#include <QRegularExpression>
+
 #include "xml.h"
 #include "score.h"
 #include "staff.h"
@@ -1257,9 +1259,10 @@ static QString ReadStyleName206(QString xmlTag)
 {
     QString s;
     if (xmlTag.contains("<style>")) {
-        QRegExp re("<style>([^<]+)</style>");
-        if (re.indexIn(xmlTag) > -1) {
-            s = re.cap(1);
+        QRegularExpression regex("<style>([^<]+)</style>");
+        QRegularExpressionMatch match = regex.match(xmlTag);
+        if (match.hasMatch()) {
+            s = match.captured();
         }
     }
     return s;
@@ -3585,7 +3588,7 @@ static bool readScore(Score* score, XmlReader& e)
                 e.tracks().clear();
                 e.clearUserTextStyles();
                 MasterScore* m = score->masterScore();
-                Score* s = new Score(m, MScore::baseStyle());
+                Score* s = m->createScore(MScore::baseStyle());
                 int defaultsVersion = m->style().defaultStyleVersion();
                 s->setStyle(*MStyle::resolveStyleDefaults(defaultsVersion));
                 s->style().setDefaultStyleVersion(defaultsVersion);

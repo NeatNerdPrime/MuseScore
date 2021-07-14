@@ -30,6 +30,8 @@
 #include "tie.h"
 
 #include "draw/transform.h"
+#include "draw/pen.h"
+#include "draw/brush.h"
 
 using namespace mu;
 
@@ -44,39 +46,40 @@ Note* Tie::editEndNote;
 void TieSegment::draw(mu::draw::Painter* painter) const
 {
     TRACE_OBJ_DRAW;
+    using namespace mu::draw;
     // hide tie toward the second chord of a cross-measure value
     if (tie()->endNote() && tie()->endNote()->chord()->crossMeasure() == CrossMeasure::SECOND) {
         return;
     }
 
-    QPen pen(curColor());
+    Pen pen(curColor());
     qreal mag = staff() ? staff()->staffMag(tie()->tick()) : 1.0;
 
     //Replace generic Qt dash patterns with improved equivalents to show true dots (keep in sync with slur.cpp)
-    QVector<qreal> dotted     = { 0.01, 1.99 };   // tighter than Qt DotLine equivalent - woud be { 0.01, 2.99 }
-    QVector<qreal> dashed     = { 3.00, 3.00 };   // Compensating for caps. Qt default DashLine is { 4.0, 2.0 }
-    QVector<qreal> wideDashed = { 5.00, 6.00 };
+    std::vector<double> dotted     = { 0.01, 1.99 };   // tighter than Qt PenStyle::DotLine equivalent - woud be { 0.01, 2.99 }
+    std::vector<double> dashed     = { 3.00, 3.00 };   // Compensating for caps. Qt default PenStyle::DashLine is { 4.0, 2.0 }
+    std::vector<double> wideDashed = { 5.00, 6.00 };
 
     switch (slurTie()->lineType()) {
     case 0:
-        painter->setBrush(QBrush(pen.color()));
-        pen.setCapStyle(Qt::RoundCap);
-        pen.setJoinStyle(Qt::RoundJoin);
+        painter->setBrush(Brush(pen.color()));
+        pen.setCapStyle(PenCapStyle::RoundCap);
+        pen.setJoinStyle(PenJoinStyle::RoundJoin);
         pen.setWidthF(score()->styleP(Sid::SlurEndWidth) * mag);
         break;
     case 1:
-        painter->setBrush(Qt::NoBrush);
-        pen.setCapStyle(Qt::RoundCap);           // True dots
+        painter->setBrush(BrushStyle::NoBrush);
+        pen.setCapStyle(PenCapStyle::RoundCap);           // True dots
         pen.setDashPattern(dotted);
         pen.setWidthF(score()->styleP(Sid::SlurDottedWidth) * mag);
         break;
     case 2:
-        painter->setBrush(Qt::NoBrush);
+        painter->setBrush(BrushStyle::NoBrush);
         pen.setDashPattern(dashed);
         pen.setWidthF(score()->styleP(Sid::SlurDottedWidth) * mag);
         break;
     case 3:
-        painter->setBrush(Qt::NoBrush);
+        painter->setBrush(BrushStyle::NoBrush);
         pen.setDashPattern(wideDashed);
         pen.setWidthF(score()->styleP(Sid::SlurDottedWidth) * mag);
         break;
@@ -141,7 +144,7 @@ void TieSegment::changeAnchor(EditData& ed, Element* element)
         TieSegment* newSegment = toTieSegment(ed.curGrip == Grip::END ? ss.back() : ss.front());
         score()->endCmd();
         score()->startCmd();
-        ed.view->startEdit(newSegment, ed.curGrip);
+        ed.view()->startEdit(newSegment, ed.curGrip);
         triggerLayoutAll();
     }
 }
@@ -162,14 +165,14 @@ void TieSegment::editDrag(EditData& ed)
         //
         if ((g == Grip::START && isSingleBeginType()) || (g == Grip::END && isSingleEndType())) {
             Spanner* spanner = tie();
-            Element* e = ed.view->elementNear(ed.pos);
+            Element* e = ed.view()->elementNear(ed.pos);
             Note* note = (e && e->isNote()) ? toNote(e) : nullptr;
             if (note && ((g == Grip::END && note->tick() > tie()->tick()) || (g == Grip::START && note->tick() < tie()->tick2()))) {
                 if (g == Grip::END) {
                     Tie* tie = toTie(spanner);
                     if (tie->startNote()->pitch() == note->pitch()
                         && tie->startNote()->chord()->tick() < note->chord()->tick()) {
-                        ed.view->setDropTarget(note);
+                        ed.view()->setDropTarget(note);
                         if (note != tie->endNote()) {
                             changeAnchor(ed, note);
                             return;
@@ -177,7 +180,7 @@ void TieSegment::editDrag(EditData& ed)
                     }
                 }
             } else {
-                ed.view->setDropTarget(0);
+                ed.view()->setDropTarget(0);
             }
         }
     } else if (g == Grip::BEZIER1 || g == Grip::BEZIER2) {

@@ -20,6 +20,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "painter.h"
+#include "brush.h"
 
 #include <QPainterPath>
 
@@ -159,7 +160,7 @@ const Font& Painter::font() const
     return m_provider->font();
 }
 
-void Painter::setPen(const QPen& pen)
+void Painter::setPen(const Pen& pen)
 {
     m_provider->setPen(pen);
     if (extended) {
@@ -169,15 +170,15 @@ void Painter::setPen(const QPen& pen)
 
 void Painter::setNoPen()
 {
-    setPen(QPen(Qt::NoPen));
+    setPen(Pen(PenStyle::NoPen));
 }
 
-const QPen& Painter::pen() const
+const Pen& Painter::pen() const
 {
     return m_provider->pen();
 }
 
-void Painter::setBrush(const QBrush& brush)
+void Painter::setBrush(const Brush& brush)
 {
     m_provider->setBrush(brush);
     if (extended) {
@@ -185,7 +186,7 @@ void Painter::setBrush(const QBrush& brush)
     }
 }
 
-const QBrush& Painter::brush() const
+const Brush& Painter::brush() const
 {
     return m_provider->brush();
 }
@@ -282,11 +283,11 @@ void Painter::setViewport(const RectF& viewport)
 
 // drawing functions
 
-void Painter::fillPath(const QPainterPath& path, const QBrush& brush)
+void Painter::fillPath(const QPainterPath& path, const Brush& brush)
 {
-    QPen oldPen = this->pen();
-    QBrush oldBrush = this->brush();
-    setPen(QPen(Qt::NoPen));
+    Pen oldPen = this->pen();
+    Brush oldBrush = this->brush();
+    setPen(Pen(PenStyle::NoPen));
     setBrush(brush);
 
     drawPath(path);
@@ -295,12 +296,12 @@ void Painter::fillPath(const QPainterPath& path, const QBrush& brush)
     setBrush(oldBrush);
 }
 
-void Painter::strokePath(const QPainterPath& path, const QPen& pen)
+void Painter::strokePath(const QPainterPath& path, const Pen& pen)
 {
-    QPen oldPen = this->pen();
-    QBrush oldBrush = this->brush();
+    Pen oldPen = this->pen();
+    Brush oldBrush = this->brush();
     setPen(pen);
-    setBrush(Qt::NoBrush);
+    setBrush(BrushStyle::NoBrush);
 
     drawPath(path);
 
@@ -316,9 +317,9 @@ void Painter::drawPath(const QPainterPath& path)
     }
 }
 
-void Painter::drawLines(const LineF* lines, int lineCount)
+void Painter::drawLines(const LineF* lines, size_t lineCount)
 {
-    for (int i = 0; i < lineCount; ++i) {
+    for (size_t i = 0; i < lineCount; ++i) {
         PointF pts[2] = { lines[i].p1(), lines[i].p2() };
         IF_ASSERT_FAILED(pts[0] != pts[1]) {
             LOGE() << "draw point not implemented";
@@ -327,16 +328,16 @@ void Painter::drawLines(const LineF* lines, int lineCount)
     }
 }
 
-void Painter::drawLines(const PointF* pointPairs, int lineCount)
+void Painter::drawLines(const PointF* pointPairs, size_t lineCount)
 {
     static_assert(sizeof(LineF) == 2 * sizeof(PointF), "must be: sizeof(LineF) == 2 * sizeof(PointF)");
 
     drawLines((const LineF*)pointPairs, lineCount);
 }
 
-void Painter::drawRects(const RectF* rects, int rectCount)
+void Painter::drawRects(const RectF* rects, size_t rectCount)
 {
-    for (int i = 0; i < rectCount; ++i) {
+    for (size_t i = 0; i < rectCount; ++i) {
         QPainterPath path;
         path.addRect(rects[i].toQRectF());
         if (path.isEmpty()) {
@@ -356,7 +357,7 @@ void Painter::drawEllipse(const RectF& rect)
     }
 }
 
-void Painter::drawPolyline(const PointF* points, int pointCount)
+void Painter::drawPolyline(const PointF* points, size_t pointCount)
 {
     m_provider->drawPolygon(points, pointCount, PolygonMode::Polyline);
     if (extended) {
@@ -364,7 +365,7 @@ void Painter::drawPolyline(const PointF* points, int pointCount)
     }
 }
 
-void Painter::drawPolygon(const PointF* points, int pointCount, Qt::FillRule fillRule)
+void Painter::drawPolygon(const PointF* points, size_t pointCount, Qt::FillRule fillRule)
 {
     PolygonMode mode = (fillRule == Qt::OddEvenFill) ? PolygonMode::OddEven : PolygonMode::Winding;
     m_provider->drawPolygon(points, pointCount, mode);
@@ -373,7 +374,7 @@ void Painter::drawPolygon(const PointF* points, int pointCount, Qt::FillRule fil
     }
 }
 
-void Painter::drawConvexPolygon(const PointF* points, int pointCount)
+void Painter::drawConvexPolygon(const PointF* points, size_t pointCount)
 {
     m_provider->drawPolygon(points, pointCount, PolygonMode::Convex);
     if (extended) {
@@ -437,11 +438,11 @@ void Painter::drawSymbol(const PointF& point, uint ucs4Code)
     }
 }
 
-void Painter::fillRect(const RectF& rect, const QBrush& brush)
+void Painter::fillRect(const RectF& rect, const Brush& brush)
 {
-    QPen oldPen = this->pen();
-    QBrush oldBrush = this->brush();
-    setPen(QPen(Qt::NoPen));
+    Pen oldPen = this->pen();
+    Brush oldBrush = this->brush();
+    setPen(Pen(mu::draw::PenStyle::NoPen));
     setBrush(brush);
 
     drawRect(rect);
@@ -450,6 +451,23 @@ void Painter::fillRect(const RectF& rect, const QBrush& brush)
     setPen(oldPen);
 }
 
+void Painter::drawPixmap(const PointF& point, const Pixmap& pm)
+{
+    m_provider->drawPixmap(point, pm);
+    if (extended) {
+        extended->drawPixmap(point, pm);
+    }
+}
+
+void Painter::drawTiledPixmap(const RectF& rect, const Pixmap& pm, const PointF& offset)
+{
+    m_provider->drawTiledPixmap(rect, pm, offset);
+    if (extended) {
+        extended->drawTiledPixmap(rect, pm, offset);
+    }
+}
+
+#ifndef NO_QT_SUPPORT
 void Painter::drawPixmap(const PointF& point, const QPixmap& pm)
 {
     m_provider->drawPixmap(point, pm);
@@ -465,6 +483,8 @@ void Painter::drawTiledPixmap(const RectF& rect, const QPixmap& pm, const PointF
         extended->drawTiledPixmap(rect, pm, offset);
     }
 }
+
+#endif
 
 Painter::State& Painter::editableState()
 {
@@ -496,4 +516,14 @@ void Painter::updateMatrix()
     if (extended) {
         extended->setTransform(st.transform);
     }
+}
+
+void Painter::setClipRect(const RectF& rect)
+{
+    m_provider->setClipRect(rect);
+}
+
+void Painter::setClipping(bool enable)
+{
+    m_provider->setClipping(enable);
 }

@@ -50,7 +50,7 @@ AppShell::AppShell()
 {
 }
 
-void AppShell::addModule(mu::framework::IModuleSetup* module)
+void AppShell::addModule(modularity::IModuleSetup* module)
 {
     m_modules.push_back(module);
 }
@@ -84,16 +84,16 @@ int AppShell::run(int argc, char** argv)
     globalModule.registerExports();
     globalModule.registerUiTypes();
 
-    for (mu::framework::IModuleSetup* m : m_modules) {
+    for (mu::modularity::IModuleSetup* m : m_modules) {
         m->registerResources();
     }
 
-    for (mu::framework::IModuleSetup* m : m_modules) {
+    for (mu::modularity::IModuleSetup* m : m_modules) {
         m->registerExports();
     }
 
     globalModule.resolveImports();
-    for (mu::framework::IModuleSetup* m : m_modules) {
+    for (mu::modularity::IModuleSetup* m : m_modules) {
         m->registerUiTypes();
         m->resolveImports();
     }
@@ -110,8 +110,16 @@ int AppShell::run(int argc, char** argv)
     // Setup modules: onInit
     // ====================================================
     globalModule.onInit(runMode);
-    for (mu::framework::IModuleSetup* m : m_modules) {
+    for (mu::modularity::IModuleSetup* m : m_modules) {
         m->onInit(runMode);
+    }
+
+    // ====================================================
+    // Setup modules: onAllInited
+    // ====================================================
+    globalModule.onAllInited(runMode);
+    for (mu::modularity::IModuleSetup* m : m_modules) {
+        m->onAllInited(runMode);
     }
 
     // ====================================================
@@ -119,7 +127,7 @@ int AppShell::run(int argc, char** argv)
     // ====================================================
     QMetaObject::invokeMethod(qApp, [this]() {
         globalModule.onStartApp();
-        for (mu::framework::IModuleSetup* m : m_modules) {
+        for (mu::modularity::IModuleSetup* m : m_modules) {
             m->onStartApp();
         }
     }, Qt::QueuedConnection);
@@ -188,6 +196,16 @@ int AppShell::run(int argc, char** argv)
         QQuickWindow::setDefaultAlphaBuffer(true);
 
         engine->load(url);
+
+        // ====================================================
+        // Setup modules: onDelayedInit
+        // ====================================================
+        QTimer::singleShot(5000, [this]() {
+                globalModule.onDelayedInit();
+                for (mu::modularity::IModuleSetup* m : m_modules) {
+                    m->onDelayedInit();
+                }
+            });
     }
     }
 
@@ -214,7 +232,7 @@ int AppShell::run(int argc, char** argv)
     ui::UiEngine::instance()->quit();
 
     // Deinit
-    for (mu::framework::IModuleSetup* m : m_modules) {
+    for (mu::modularity::IModuleSetup* m : m_modules) {
         m->onDeinit();
     }
 
@@ -226,17 +244,40 @@ int AppShell::run(int argc, char** argv)
 int AppShell::processConverter(const CommandLineController::ConverterTask& task)
 {
     Ret ret = make_ret(Ret::Code::Ok);
+    io::path stylePath = task.params[CommandLineController::ParamKey::StylePath].toString();
+    bool forceMode = task.params[CommandLineController::ParamKey::ForceMode].toBool();
 
     switch (task.type) {
     case CommandLineController::ConvertType::Batch:
-        ret = converter()->batchConvert(task.inputFile);
+        ret = converter()->batchConvert(task.inputFile, stylePath, forceMode);
+        break;
+    case CommandLineController::ConvertType::ConvertScoreParts:
+        ret = converter()->convertScoreParts(task.inputFile, task.outputFile, stylePath);
         break;
     case CommandLineController::ConvertType::File:
-        ret = converter()->fileConvert(task.inputFile, task.outputFile);
+        ret = converter()->fileConvert(task.inputFile, task.outputFile, stylePath, forceMode);
         break;
-    case CommandLineController::ConvertType::ExportScoreMedia:
-        ret = converter()->exportScoreMedia(task.inputFile, task.outputFile, task.data.toString().toStdString());
+    case CommandLineController::ConvertType::ExportScoreMedia: {
+        io::path highlightConfigPath = task.params[CommandLineController::ParamKey::HighlightConfigPath].toString();
+        ret = converter()->exportScoreMedia(task.inputFile, task.outputFile, highlightConfigPath, stylePath, forceMode);
+    } break;
+    case CommandLineController::ConvertType::ExportScoreMeta:
+        ret = converter()->exportScoreMeta(task.inputFile, task.outputFile, stylePath, forceMode);
         break;
+    case CommandLineController::ConvertType::ExportScoreParts:
+        ret = converter()->exportScoreParts(task.inputFile, task.outputFile, stylePath, forceMode);
+        break;
+    case CommandLineController::ConvertType::ExportScorePartsPdf:
+        ret = converter()->exportScorePartsPdfs(task.inputFile, task.outputFile, stylePath, forceMode);
+        break;
+    case CommandLineController::ConvertType::ExportScoreTranspose: {
+        std::string scoreTranspose = task.params[CommandLineController::ParamKey::ScoreTransposeOptions].toString().toStdString();
+        ret = converter()->exportScoreTranspose(task.inputFile, task.outputFile, scoreTranspose, stylePath, forceMode);
+    } break;
+    case CommandLineController::ConvertType::SourceUpdate: {
+        std::string scoreSource = task.params[CommandLineController::ParamKey::ScoreSource].toString().toStdString();
+        ret = converter()->updateSource(task.inputFile, scoreSource, forceMode);
+    } break;
     }
 
     if (!ret) {

@@ -57,8 +57,10 @@ StyledTabButton {
 
         MenuButton {
             anchors.verticalCenter: parent.verticalCenter
-
             visible: root.isCurrent
+
+            navigation.panel: root.navigation.panel
+            navigation.order: root.navigation.order + 1
 
             menuModel: root.menuModel
         }
@@ -66,6 +68,9 @@ StyledTabButton {
 
     background: Rectangle {
         id: backgroundRect
+
+        border.width: root.navigation.active ? 2 : 0
+        border.color: ui.theme.focusColor
 
         color: ui.theme.backgroundSecondaryColor
         opacity: 1

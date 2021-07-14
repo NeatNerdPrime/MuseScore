@@ -23,6 +23,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 
 import MuseScore.Ui 1.0
+import MuseScore.UiComponents 1.0
 import MuseScore.Dock 1.0
 import MuseScore.AppShell 1.0
 
@@ -40,13 +41,7 @@ DockPage {
     objectName: "Notation"
     uri: "musescore://notation"
 
-    property var color: ui.theme.backgroundPrimaryColor
-    property var borderColor: ui.theme.strokeColor
-
-    property bool isNotationToolBarVisible: false
-    property bool isPlaybackToolBarVisible: false
-    property bool isUndoRedoToolBarVisible: false
-    property bool isNotationNavigatorVisible: false
+    property DockWindow dockWindow: null
 
     property var topToolKeyNavSec
 
@@ -58,27 +53,38 @@ DockPage {
         order: 2
     }
 
-    function updatePageState() {
-        var states = [
-                    {"Palette": palettePanel.visible},
-                    {"Instruments": instrumentsPanel.visible},
-                    {"Inspector": inspectorPanel.visible},
-                    {"NotationToolBar": isNotationToolBarVisible},
-                    {"PlaybackToolBar": isPlaybackToolBarVisible},
-                    {"UndoRedoToolBar": isUndoRedoToolBarVisible}
-                ]
-
-        pageModel.setPanelsState(states)
+    property NavigationSection keynavLeftPanelSec: NavigationSection {
+        name: "NavigationLeftPanel"
+        enabled: root.visible
+        order: 3
     }
 
-    Component.onCompleted: {
-        updatePageState()
+    property NavigationSection keynavRightPanelSec: NavigationSection {
+        name: "NavigationRightPanel"
+        enabled: root.visible
+        order: 5
+    }
 
-        palettePanel.visible = Qt.binding(function() { return pageModel.isPalettePanelVisible })
-        instrumentsPanel.visible = Qt.binding(function() { return pageModel.isInstrumentsPanelVisible })
-        inspectorPanel.visible = Qt.binding(function() { return pageModel.isInspectorPanelVisible })
+    function navigationPanelSec(location) {
+        if (location === DockBase.Right) {
+            return keynavRightPanelSec
+        }
+        return keynavLeftPanelSec
+    }
 
-        pageModel.init()
+    onInited: {
+        pageModel.setNotationToolBarDockName(notationToolBar.objectName)
+        pageModel.setPlaybackToolBarDockName(playbackToolBar.objectName)
+        pageModel.setUndoRedoToolBarDockName(undoRedoToolBar.objectName)
+        pageModel.setNoteInputBarDockName(noteInputBar.objectName)
+        pageModel.setInspectorPanelDockName(inspectorPanel.objectName)
+        pageModel.setInstrumentsPanelDockName(instrumentsPanel.objectName)
+        pageModel.setPalettePanelDockName(palettePanel.objectName)
+        pageModel.setPianoRollDockName(pianoRollPanel.objectName)
+        pageModel.setMixerDockName(mixerPanel.objectName)
+        pageModel.setStatusBarDockName(notationStatusBar.objectName)
+
+        Qt.callLater(pageModel.init, root.dockWindow)
     }
 
     readonly property int defaultPanelWidth: 260
@@ -112,7 +118,7 @@ DockPage {
             title: qsTrc("appshell", "Playback Controls")
 
             width: root.width / 3
-            minimumWidth: floating ? 526 : 476
+            minimumWidth: floating ? 526 : 452
             minimumHeight: floating ? 56 : root.toolBarHeight
 
             contentComponent: PlaybackToolBar {
@@ -134,7 +140,10 @@ DockPage {
 
             movable: false
 
-            contentComponent: UndoRedoToolBar {}
+            contentComponent: UndoRedoToolBar {
+                navigation.section: root.topToolKeyNavSec
+                navigation.order: 4
+            }
         }
     ]
 
@@ -166,17 +175,17 @@ DockPage {
             objectName: "palettePanel"
             title: qsTrc("appshell", "Palette")
 
+            navigationSection: root.navigationPanelSec(palettePanel.location)
+
             width: root.defaultPanelWidth
             minimumWidth: root.defaultPanelWidth
             maximumWidth: root.defaultPanelWidth
 
             tabifyPanel: instrumentsPanel
 
-            onClosed: {
-                root.pageModel.isPalettePanelVisible = false
+            PalettesWidget {
+                navigationSection: palettePanel.navigationSection
             }
-
-            PalettesWidget {}
         },
 
         DockPanel {
@@ -185,41 +194,90 @@ DockPage {
             objectName: "instrumentsPanel"
             title: qsTrc("appshell", "Instruments")
 
+            navigationSection: root.navigationPanelSec(palettePanel.location)
+
             width: root.defaultPanelWidth
             minimumWidth: root.defaultPanelWidth
             maximumWidth: root.defaultPanelWidth
 
             tabifyPanel: inspectorPanel
 
-            onClosed: {
-                root.pageModel.isInstrumentsPanelVisible = false
+            InstrumentsPanel {
+                navigationSection: instrumentsPanel.navigationSection
             }
-
-            InstrumentsPanel {}
         },
 
         DockPanel {
             id: inspectorPanel
 
             objectName: "inspectorPanel"
-            title: qsTrc("appshell", "Inspector")
+            title: qsTrc("appshell", "Properties")
+
+            navigationSection: root.navigationPanelSec(palettePanel.location)
 
             width: root.defaultPanelWidth
             minimumWidth: root.defaultPanelWidth
             maximumWidth: root.defaultPanelWidth
 
-            onClosed: {
-                root.pageModel.isInspectorPanelVisible = false
+            InspectorForm {
+                navigationSection: inspectorPanel.navigationSection
             }
+        },
 
-            InspectorForm {}
+        // =============================================
+        // Horizontal Panels
+        // =============================================
+
+        DockPanel {
+            id: mixerPanel
+
+            objectName: "mixerPanel"
+            title: qsTrc("appshell", "Mixer")
+
+            allowedAreas: Qt.TopDockWidgetArea | Qt.BottomDockWidgetArea
+
+            height: minimumHeight
+            minimumHeight: 180
+            maximumHeight: 520
+
+            tabifyPanel: pianoRollPanel
+
+            Loader {
+                asynchronous: true
+                sourceComponent: MixerPanel {}
+            }
+        },
+
+        DockPanel {
+            id: pianoRollPanel
+
+            objectName: "pianoRollPanel"
+            title: qsTrc("appshell", "Piano Roll")
+
+            allowedAreas: Qt.TopDockWidgetArea | Qt.BottomDockWidgetArea
+
+            height: 200
+            minimumHeight: 100
+            maximumHeight: 300
+
+            visible: false
+
+            Rectangle {
+                anchors.fill: parent
+                color: ui.theme.backgroundPrimaryColor
+
+                StyledTextLabel {
+                    anchors.centerIn: parent
+                    text: pianoRollPanel.title
+                }
+            }
         }
     ]
 
     central: NotationView {
         id: notationView
 
-        isNavigatorVisible: root.pageModel.isNotationNavigatorVisible
+        isNavigatorVisible: pageModel.isNavigatorVisible
 
         onTextEdittingStarted: {
             notationView.forceActiveFocus()
@@ -231,9 +289,6 @@ DockPage {
 
         objectName: "notationStatusBar"
 
-        NotationStatusBar {
-            color: root.color
-            visible: root.pageModel.isStatusBarVisible
-        }
+        NotationStatusBar {}
     }
 }

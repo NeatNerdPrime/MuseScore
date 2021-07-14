@@ -31,6 +31,7 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/multiinstancesmodule.cpp
     ${CMAKE_CURRENT_LIST_DIR}/multiinstancesmodule.h
     ${CMAKE_CURRENT_LIST_DIR}/imultiinstancesprovider.h
+    ${CMAKE_CURRENT_LIST_DIR}/resourcelockguard.h
     ${CMAKE_CURRENT_LIST_DIR}/mitypes.h
 
     ${CMAKE_CURRENT_LIST_DIR}/internal/multiinstancesprovider.cpp
@@ -49,6 +50,8 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/internal/ipc/ipcsocket.h
     ${CMAKE_CURRENT_LIST_DIR}/internal/ipc/ipclock.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/ipc/ipclock.h
+    ${CMAKE_CURRENT_LIST_DIR}/internal/ipc/ipcloop.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/internal/ipc/ipcloop.h
 
     ${CMAKE_CURRENT_LIST_DIR}/dev/multiinstancesdevmodel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dev/multiinstancesdevmodel.h

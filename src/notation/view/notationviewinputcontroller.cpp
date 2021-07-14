@@ -305,23 +305,28 @@ void NotationViewInputController::mousePressEvent(QMouseEvent* event)
 
     if (playbackController()->isPlaying()) {
         if (m_interactData.hitElement) {
-            m_view->notationPlayback()->setPlayPositionByElement(m_interactData.hitElement);
+            RetVal<midi::tick_t> tick = m_view->notationPlayback()->playPositionTickByElement(m_interactData.hitElement);
+
+            if (tick.ret) {
+                playbackController()->seek(tick.val);
+            }
         }
         return;
     }
 
     if (m_interactData.hitElement) {
         if (!m_interactData.hitElement->selected()) {
-            SelectType selectType = SelectType::SINGLE;
-            if (keyState == Qt::NoModifier) {
-                selectType = SelectType::SINGLE;
-            } else if (keyState & Qt::ShiftModifier) {
-                selectType = SelectType::RANGE;
-            } else if (keyState & Qt::ControlModifier) {
-                selectType = SelectType::ADD;
+            if (event->button() != Qt::MouseButton::RightButton) {
+                SelectType selectType = SelectType::SINGLE;
+                if (keyState == Qt::NoModifier) {
+                    selectType = SelectType::SINGLE;
+                } else if (keyState & Qt::ShiftModifier) {
+                    selectType = SelectType::RANGE;
+                } else if (keyState & Qt::ControlModifier) {
+                    selectType = SelectType::ADD;
+                }
+                m_view->notationInteraction()->select({ m_interactData.hitElement }, selectType, m_interactData.hitStaffIndex);
             }
-
-            m_view->notationInteraction()->select({ m_interactData.hitElement }, selectType, m_interactData.hitStaffIndex);
         }
     }
 
@@ -472,11 +477,9 @@ void NotationViewInputController::hoverMoveEvent(QHoverEvent* event)
     }
 }
 
-void NotationViewInputController::keyReleaseEvent(QKeyEvent* event)
+void NotationViewInputController::keyPressEvent(QKeyEvent* event)
 {
-    if (m_view->notationInteraction()->isTextEditingStarted()) {
-        m_view->notationInteraction()->editText(event);
-    }
+    m_view->notationInteraction()->editText(event);
 }
 
 void NotationViewInputController::dragEnterEvent(QDragEnterEvent* event)

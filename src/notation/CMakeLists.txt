@@ -31,6 +31,7 @@ set(MODULE_SRC
     ${WIDGETS_SRC}
     ${CMAKE_CURRENT_LIST_DIR}/notationmodule.cpp
     ${CMAKE_CURRENT_LIST_DIR}/notationmodule.h
+    ${CMAKE_CURRENT_LIST_DIR}/inotationproject.h
     ${CMAKE_CURRENT_LIST_DIR}/imasternotation.h
     ${CMAKE_CURRENT_LIST_DIR}/iexcerptnotation.h
     ${CMAKE_CURRENT_LIST_DIR}/inotation.h
@@ -54,9 +55,15 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/inotationplayback.h
     ${CMAKE_CURRENT_LIST_DIR}/inotationelements.h
     ${CMAKE_CURRENT_LIST_DIR}/inotationparts.h
+    ${CMAKE_CURRENT_LIST_DIR}/iinstrumentsrepository.h
+    ${CMAKE_CURRENT_LIST_DIR}/iselectinstrumentscenario.h
+    ${CMAKE_CURRENT_LIST_DIR}/iprojectaudiosettings.h
+
     ${CMAKE_CURRENT_LIST_DIR}/internal/notationuiactions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/notationuiactions.h
     ${CMAKE_CURRENT_LIST_DIR}/internal/igetscore.h
+    ${CMAKE_CURRENT_LIST_DIR}/internal/notationproject.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/internal/notationproject.h
     ${CMAKE_CURRENT_LIST_DIR}/internal/masternotation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/masternotation.h
     ${CMAKE_CURRENT_LIST_DIR}/internal/excerptnotation.cpp
@@ -88,8 +95,6 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/internal/notationconfiguration.h
     ${CMAKE_CURRENT_LIST_DIR}/internal/mscznotationreader.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/mscznotationreader.h
-    ${CMAKE_CURRENT_LIST_DIR}/internal/notationmetawriter.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/internal/notationmetawriter.h
     ${CMAKE_CURRENT_LIST_DIR}/internal/positionswriter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/positionswriter.h
     ${CMAKE_CURRENT_LIST_DIR}/internal/notationreadersregister.cpp
@@ -111,8 +116,18 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/internal/searchcommandsparser.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/searchcommandsparser.h
     ${CMAKE_CURRENT_LIST_DIR}/internal/inotationselectionrange.h
+    ${CMAKE_CURRENT_LIST_DIR}/internal/scoreorderconverter.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/internal/scoreorderconverter.h
+    ${CMAKE_CURRENT_LIST_DIR}/internal/inotationmidievents.h
+    ${CMAKE_CURRENT_LIST_DIR}/internal/notationmidievents.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/internal/notationmidievents.h
     ${CMAKE_CURRENT_LIST_DIR}/internal/instrumentsconverter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/instrumentsconverter.h
+    ${CMAKE_CURRENT_LIST_DIR}/internal/instrumentsrepository.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/internal/instrumentsrepository.h
+    ${CMAKE_CURRENT_LIST_DIR}/internal/projectaudiosettings.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/internal/projectaudiosettings.h
+
     ${CMAKE_CURRENT_LIST_DIR}/view/inotationcontextmenu.h
     ${CMAKE_CURRENT_LIST_DIR}/view/notationpaintview.cpp
     ${CMAKE_CURRENT_LIST_DIR}/view/notationpaintview.h
@@ -140,10 +155,8 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/view/notationcontextmenu.h
     ${CMAKE_CURRENT_LIST_DIR}/view/notationnavigator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/view/notationnavigator.h
-    ${CMAKE_CURRENT_LIST_DIR}/view/internal/abstractnoteinputbaritem.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/view/internal/abstractnoteinputbaritem.h
-    ${CMAKE_CURRENT_LIST_DIR}/view/internal/actionnoteinputbaritem.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/view/internal/actionnoteinputbaritem.h
+    ${CMAKE_CURRENT_LIST_DIR}/view/noteinputbarcustomiseitem.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/view/noteinputbarcustomiseitem.h
     ${CMAKE_CURRENT_LIST_DIR}/view/internal/undoredomodel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/view/internal/undoredomodel.h
     )

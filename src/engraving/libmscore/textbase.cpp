@@ -21,10 +21,13 @@
  */
 
 #include <cmath>
-#include <QClipboard>
+
+#include <QGuiApplication>
+
 #include <QStack>
 #include <QTextFragment>
 #include <QTextDocument>
+#include <QRegularExpression>
 
 #include "text.h"
 #include "textedit.h"
@@ -45,6 +48,8 @@
 
 #include "draw/fontmetrics.h"
 #include "draw/fontcompat.h"
+#include "draw/pen.h"
+#include "draw/brush.h"
 
 using namespace mu;
 
@@ -646,9 +651,6 @@ bool TextCursor::set(const PointF& p, QTextCursor::MoveMode mode)
         if (mode == QTextCursor::MoveAnchor) {
             clearSelection();
         }
-        if (hasSelection()) {
-            QApplication::clipboard()->setText(selectedText(), QClipboard::Selection);
-        }
     }
     updateCursorFormat();
     return true;
@@ -659,14 +661,14 @@ bool TextCursor::set(const PointF& p, QTextCursor::MoveMode mode)
 //    return current selection
 //---------------------------------------------------------
 
-QString TextCursor::selectedText() const
+QString TextCursor::selectedText(bool withFormat) const
 {
     int r1 = selectLine();
     int r2 = _row;
     int c1 = selectColumn();
     int c2 = column();
     sort(r1, c1, r2, c2);
-    return extractText(r1, c1, r2, c2);
+    return extractText(r1, c1, r2, c2, withFormat);
 }
 
 //---------------------------------------------------------
@@ -674,22 +676,22 @@ QString TextCursor::selectedText() const
 //    return text between (r1,c1) and (r2,c2).
 //---------------------------------------------------------
 
-QString TextCursor::extractText(int r1, int c1, int r2, int c2) const
+QString TextCursor::extractText(int r1, int c1, int r2, int c2, bool withFormat) const
 {
     Q_ASSERT(isSorted(r1, c1, r2, c2));
     const QList<TextBlock>& tb = _text->_layout;
 
     if (r1 == r2) {
-        return tb.at(r1).text(c1, c2 - c1);
+        return tb.at(r1).text(c1, c2 - c1, withFormat);
     }
 
-    QString str = tb.at(r1).text(c1, -1) + "\n";
+    QString str = tb.at(r1).text(c1, -1, withFormat) + "\n";
 
     for (int r = r1 + 1; r < r2; ++r) {
-        str += tb.at(r).text(0, -1) + "\n";
+        str += tb.at(r).text(0, -1, withFormat) + "\n";
     }
 
-    str += tb.at(r2).text(0, c2);
+    str += tb.at(r2).text(0, c2, withFormat);
     return str;
 }
 
@@ -1605,13 +1607,19 @@ TextBlock TextBlock::split(int column, Ms::TextCursor* cursor)
 //    extract text, symbols are marked with <sym>xxx</sym>
 //---------------------------------------------------------
 
-QString TextBlock::text(int col1, int len) const
+QString TextBlock::text(int col1, int len, bool withFormat) const
 {
     QString s;
     int col = 0;
+    qreal size;
+    QString family;
     for (const auto& f : _fragments) {
         if (f.text.isEmpty()) {
             continue;
+        }
+        if (withFormat) {
+            s += TextBase::getHtmlStartTag(f.format.fontSize(), size, f.format.fontFamily(), family, f.format.bold(),
+                                           f.format.italic(), f.format.underline());
         }
         for (const QChar& c : qAsConst(f.text)) {
             if (col >= col1 && (len < 0 || ((col - col1) < len))) {
@@ -1620,6 +1628,9 @@ QString TextBlock::text(int col1, int len) const
             if (!c.isHighSurrogate()) {
                 ++col;
             }
+        }
+        if (withFormat) {
+            s += TextBase::getHtmlEndTag(f.format.bold(), f.format.italic(), f.format.underline());
         }
     }
     return s;
@@ -1691,7 +1702,7 @@ TextBase::TextBase(const TextBase& st)
 
 void TextBase::drawSelection(mu::draw::Painter* p, const RectF& r) const
 {
-    QBrush bg(QColor("steelblue"));
+    mu::draw::Brush bg(QColor("steelblue"));
     p->setCompositionMode(mu::draw::CompositionMode::HardLight);
     p->setBrush(bg);
     p->setNoPen();
@@ -1825,66 +1836,26 @@ void TextBase::createLayout()
             }
         } else if (state == 1) {
             if (c == '>') {
-                bool unstyleFontStyle = false;
                 state = 0;
-                if (token == "b") {
-                    cursor.format()->setBold(true);
-                    unstyleFontStyle = true;
-                } else if (token == "/b") {
-                    cursor.format()->setBold(false);
-                } else if (token == "i") {
-                    cursor.format()->setItalic(true);
-                    unstyleFontStyle = true;
-                } else if (token == "/i") {
-                    cursor.format()->setItalic(false);
-                } else if (token == "u") {
-                    cursor.format()->setUnderline(true);
-                    unstyleFontStyle = true;
-                } else if (token == "/u") {
-                    cursor.format()->setUnderline(false);
-                } else if (token == "sub") {
-                    cursor.format()->setValign(VerticalAlignment::AlignSubScript);
-                } else if (token == "/sub") {
-                    cursor.format()->setValign(VerticalAlignment::AlignNormal);
-                } else if (token == "sup") {
-                    cursor.format()->setValign(VerticalAlignment::AlignSuperScript);
-                } else if (token == "/sup") {
-                    cursor.format()->setValign(VerticalAlignment::AlignNormal);
-                } else if (token == "sym") {
+                prepareFormat(token, cursor);
+                if (token == "sym") {
                     symState = true;
                     sym.clear();
                 } else if (token == "/sym") {
                     symState = false;
                     SymId id = Sym::name2id(sym);
                     if (id != SymId::noSym) {
-                        CharFormat fmt = *cursor.format();              // save format
-                        // uint code = score()->scoreFont()->sym(id).code();
+                        CharFormat fmt = *cursor.format();  // save format
+                                                            // uint code = score()->scoreFont()->sym(id).code();
                         uint code = ScoreFont::fallbackFont()->sym(id).code();
                         cursor.format()->setFontFamily("ScoreText");
                         cursor.format()->setBold(false);
                         cursor.format()->setItalic(false);
                         insert(&cursor, code);
-                        cursor.setFormat(fmt);              // restore format
+                        cursor.setFormat(fmt);  // restore format
                     } else {
                         qDebug("unknown symbol <%s>", qPrintable(sym));
                     }
-                } else if (token.startsWith("font ")) {
-                    token = token.mid(5);
-                    if (token.startsWith("size=\"")) {
-                        cursor.format()->setFontSize(parseNumProperty(token.mid(6)));
-                        setPropertyFlags(Pid::FONT_SIZE, PropertyFlags::UNSTYLED);
-                    } else if (token.startsWith("face=\"")) {
-                        QString face = parseStringProperty(token.mid(6));
-                        face = unEscape(face);
-                        cursor.format()->setFontFamily(face);
-                        setPropertyFlags(Pid::FONT_FACE, PropertyFlags::UNSTYLED);
-                    } else {
-                        qDebug("cannot parse html property <%s> in text <%s>",
-                               qPrintable(token), qPrintable(_text));
-                    }
-                }
-                if (unstyleFontStyle) {
-                    setPropertyFlags(Pid::FONT_STYLE, PropertyFlags::UNSTYLED);
                 }
             } else {
                 token += c;
@@ -1912,6 +1883,66 @@ void TextBase::createLayout()
         _layout.append(TextBlock());
     }
     layoutInvalid = false;
+}
+
+//---------------------------------------------------------
+//   prepareFormat - used when reading from XML and when pasting from clipboard
+//---------------------------------------------------------
+bool TextBase::prepareFormat(const QString& token, Ms::CharFormat& format)
+{
+    if (token == "b") {
+        format.setBold(true);
+        return true;
+    } else if (token == "/b") {
+        format.setBold(false);
+    } else if (token == "i") {
+        format.setItalic(true);
+        return true;
+    } else if (token == "/i") {
+        format.setItalic(false);
+    } else if (token == "u") {
+        format.setUnderline(true);
+        return true;
+    } else if (token == "/u") {
+        format.setUnderline(false);
+    } else if (token == "sub") {
+        format.setValign(VerticalAlignment::AlignSubScript);
+    } else if (token == "/sub") {
+        format.setValign(VerticalAlignment::AlignNormal);
+    } else if (token == "sup") {
+        format.setValign(VerticalAlignment::AlignSuperScript);
+    } else if (token == "/sup") {
+        format.setValign(VerticalAlignment::AlignNormal);
+    } else if (token.startsWith("font ")) {
+        QString remainder = token.mid(5);
+        if (remainder.startsWith("size=\"")) {
+            format.setFontSize(parseNumProperty(remainder.mid(6)));
+            return true;
+        } else if (remainder.startsWith("face=\"")) {
+            QString face = parseStringProperty(remainder.mid(6));
+            face = unEscape(face);
+            format.setFontFamily(face);
+            if (face == "ScoreText") {
+                format.setBold(false);
+                format.setItalic(false);
+            }
+            return true;
+        } else {
+            qDebug("cannot parse html property <%s> in text <%s>",
+                   qPrintable(token), qPrintable(_text));
+        }
+    }
+    return false;
+}
+
+//---------------------------------------------------------
+//   prepareFormat - used when reading from XML
+//---------------------------------------------------------
+void TextBase::prepareFormat(const QString& token, Ms::TextCursor& cursor)
+{
+    if (prepareFormat(token, *cursor.format())) {
+        setPropertyFlags(Pid::FONT_FACE, PropertyFlags::UNSTYLED);
+    }
 }
 
 //---------------------------------------------------------
@@ -2288,10 +2319,8 @@ void TextBase::selectAll(TextCursor* cursor)
         return;
     }
 
-    cursor->setSelectLine(0);
-    cursor->setSelectColumn(0);
-    cursor->setRow(rows() - 1);
-    cursor->setColumn(cursor->curLine().columns());
+    cursor->movePosition(QTextCursor::Start, QTextCursor::MoveMode::MoveAnchor);
+    cursor->movePosition(QTextCursor::End, QTextCursor::MoveMode::KeepAnchor);
 }
 
 //---------------------------------------------------------
@@ -2517,9 +2546,7 @@ bool TextBase::mousePress(EditData& ed)
     if (!ted->cursor()->set(ed.startMove, shift ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor)) {
         return false;
     }
-    if (ed.buttons == Qt::MiddleButton) {
-        paste(ed);
-    }
+
     score()->setUpdateAll();
     return true;
 }
@@ -2785,7 +2812,7 @@ bool TextBase::validateText(QString& s)
                 d.append("&amp;");
             }
         } else if (c == '<') {
-            const char* ok[] { "b>", "/b>", "i>", "/i>", "u>", "/u", "font ", "/font>", "sym>", "/sym>" };
+            const char* ok[] { "b>", "/b>", "i>", "/i>", "u>", "/u", "font ", "/font>", "sym>", "/sym>", "sub>", "/sub>", "sup>", "/sup>" };
             QString t = s.mid(i + 1);
             bool found = false;
             for (auto k : ok) {
@@ -3056,6 +3083,50 @@ Sid TextBase::offsetSid() const
 }
 
 //---------------------------------------------------------
+//   getHtmlStartTag - helper function for extractText with withFormat = true
+//---------------------------------------------------------
+QString TextBase::getHtmlStartTag(qreal newSize, qreal& curSize, const QString& newFamily, QString& curFamily, bool bold, bool italic,
+                                  bool underline)
+{
+    QString s;
+    if (fabs(newSize - curSize) > 0.1) {
+        curSize = newSize;
+        s += QString("<font size=\"%1\"/>").arg(newSize);
+    }
+    if (newFamily != curFamily) {
+        curFamily = newFamily;
+        s += QString("<font face=\"%1\"/>").arg(newFamily);
+    }
+    if (bold) {
+        s += "<b>";
+    }
+    if (italic) {
+        s += "<i>";
+    }
+    if (underline) {
+        s += "<u>";
+    }
+    return s;
+}
+
+//---------------------------------------------------------
+//   getHtmlEndTag - helper function for extractText with withFormat = true
+//---------------------------------------------------------
+QString TextBase::getHtmlEndTag(bool bold, bool italic, bool underline)
+{
+    if (underline) {
+        return "</u>";
+    }
+    if (italic) {
+        return "</i>";
+    }
+    if (bold) {
+        return "</b>";
+    }
+    return QString();
+}
+
+//---------------------------------------------------------
 //   getPropertyStyle
 //---------------------------------------------------------
 
@@ -3163,10 +3234,10 @@ void TextBase::editCut(EditData& ed)
 {
     TextEditData* ted = static_cast<TextEditData*>(ed.getData(this));
     TextCursor* cursor = ted->cursor();
-    QString s = cursor->selectedText();
+    QString s = cursor->selectedText(true);
 
     if (!s.isEmpty()) {
-        QApplication::clipboard()->setText(s, QClipboard::Clipboard);
+        ted->selectedText = cursor->selectedText(true);
         ed.curGrip = Grip::START;
         ed.key     = Qt::Key_Delete;
         ed.s       = QString();
@@ -3185,10 +3256,7 @@ void TextBase::editCopy(EditData& ed)
     //
     TextEditData* ted = static_cast<TextEditData*>(ed.getData(this));
     TextCursor* cursor = ted->cursor();
-    QString s = cursor->selectedText();
-    if (!s.isEmpty()) {
-        QApplication::clipboard()->setText(s, QClipboard::Clipboard);
-    }
+    ted->selectedText = cursor->selectedText(true);
 }
 
 //---------------------------------------------------------
@@ -3209,19 +3277,20 @@ TextCursor* TextBase::cursorFromEditData(const EditData& ed)
 void TextBase::draw(mu::draw::Painter* painter) const
 {
     TRACE_OBJ_DRAW;
+    using namespace mu::draw;
     if (hasFrame()) {
         qreal baseSpatium = MScore::baseStyle().value(Sid::spatium).toDouble();
         if (frameWidth().val() != 0.0) {
             QColor fColor = curColor(visible(), frameColor());
             qreal frameWidthVal = frameWidth().val() * (sizeIsSpatiumDependent() ? spatium() : baseSpatium);
 
-            QPen pen(fColor, frameWidthVal, Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin);
+            Pen pen(fColor, frameWidthVal, PenStyle::SolidLine, PenCapStyle::SquareCap, PenJoinStyle::MiterJoin);
             painter->setPen(pen);
         } else {
             painter->setNoPen();
         }
         QColor bg(bgColor());
-        painter->setBrush(bg.alpha() ? QBrush(bg) : Qt::NoBrush);
+        painter->setBrush(bg.alpha() ? Brush(bg) : BrushStyle::NoBrush);
         if (circle()) {
             painter->drawEllipse(frame);
         } else {
@@ -3234,7 +3303,7 @@ void TextBase::draw(mu::draw::Painter* painter) const
             painter->drawRoundedRect(frame, frameRound() * frameRoundFactor, r2);
         }
     }
-    painter->setBrush(Qt::NoBrush);
+    painter->setBrush(BrushStyle::NoBrush);
     painter->setPen(textColor());
     for (const TextBlock& t : _layout) {
         t.draw(painter, this);
@@ -3248,6 +3317,7 @@ void TextBase::draw(mu::draw::Painter* painter) const
 
 void TextBase::drawEditMode(mu::draw::Painter* p, EditData& ed)
 {
+    using namespace mu::draw;
     PointF pos(canvasPos());
     p->translate(pos);
 
@@ -3259,7 +3329,7 @@ void TextBase::drawEditMode(mu::draw::Painter* p, EditData& ed)
     TextCursor* cursor = ted->cursor();
 
     if (cursor->hasSelection()) {
-        p->setBrush(Qt::NoBrush);
+        p->setBrush(BrushStyle::NoBrush);
         p->setPen(textColor());
         int r1 = cursor->selectLine();
         int r2 = cursor->row();
@@ -3288,8 +3358,8 @@ void TextBase::drawEditMode(mu::draw::Painter* p, EditData& ed)
         }
     }
     p->setBrush(curColor());
-    QPen pen(curColor());
-    pen.setJoinStyle(Qt::MiterJoin);
+    Pen pen(curColor());
+    pen.setJoinStyle(PenJoinStyle::MiterJoin);
     p->setPen(pen);
 
     // Don't draw cursor if there is a selection
@@ -3297,17 +3367,17 @@ void TextBase::drawEditMode(mu::draw::Painter* p, EditData& ed)
         p->drawRect(cursor->cursorRect());
     }
 
-    QMatrix matrix = p->worldTransform().toAffine();
+    QTransform transform = p->worldTransform();
     p->translate(-pos);
-    p->setPen(QPen(QBrush(Qt::lightGray), 4.0 / matrix.m11()));    // 4 pixel pen size
-    p->setBrush(Qt::NoBrush);
+    p->setPen(Pen(Qt::lightGray, 4.0 / transform.m11()));    // 4 pixel pen size
+    p->setBrush(BrushStyle::NoBrush);
 
     qreal m = spatium();
     RectF r = canvasBoundingRect().adjusted(-m, -m, m, m);
 //      qDebug("%f %f %f %f\n", r.x(), r.y(), r.width(), r.height());
 
     p->drawRect(r);
-    pen = QPen(MScore::defaultColor, 0.0);
+    pen = Pen(MScore::defaultColor, 0.0);
 }
 
 //---------------------------------------------------------

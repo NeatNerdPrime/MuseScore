@@ -23,7 +23,10 @@
 
 #include "modularity/ioc.h"
 
+#ifndef NO_ENGRAVING_QFONTENGINE
 #include "engraving/draw/qfontprovider.h"
+#endif
+#include "engraving/draw/qimageconverter.h"
 
 #include "engraving/libmscore/mscore.h"
 #include "engraving/libmscore/score.h"
@@ -31,8 +34,10 @@
 
 #include "notation/inotationconfiguration.h"
 
+#include "scoreaccess.h"
+
 using namespace mu::engraving;
-using namespace mu::framework;
+using namespace mu::modularity;
 
 std::string EngravingModule::moduleName() const
 {
@@ -41,7 +46,10 @@ std::string EngravingModule::moduleName() const
 
 void EngravingModule::registerExports()
 {
+#ifndef NO_ENGRAVING_QFONTENGINE
     ioc()->registerExport<draw::IFontProvider>(moduleName(), new draw::QFontProvider());
+#endif
+    ioc()->registerExport<draw::IImageConverter>(moduleName(), new draw::QImageConverter());
 }
 
 void EngravingModule::resolveImports()
@@ -65,7 +73,7 @@ void EngravingModule::onInit(const framework::IApplication::RunMode&)
     Ms::MScore::setNudgeStep10(1.0); // Ctrl + cursor key (default 1.0)
     Ms::MScore::setNudgeStep50(0.01); // Alt  + cursor key (default 0.01)
 
-    Ms::gscore = new Ms::MasterScore();
+    Ms::gscore = ScoreAccess::createMasterScore();
     Ms::gscore->setPaletteMode(true);
     Ms::gscore->setMovements(new Ms::Movements());
     Ms::gscore->setStyle(Ms::MScore::baseStyle());

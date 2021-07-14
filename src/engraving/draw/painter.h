@@ -25,7 +25,6 @@
 #include <list>
 #include <stack>
 
-#include <QPen>
 #include <QColor>
 #include <QPainter>
 
@@ -35,9 +34,10 @@
 #include "geometry.h"
 #include "drawtypes.h"
 #include "font.h"
+#include "pen.h"
+#include "pixmap.h"
 
 class QPaintDevice;
-class QImage;
 
 #ifndef NO_QT_SUPPORT
 class QPainter;
@@ -74,13 +74,13 @@ public:
     void setFont(const Font& font);
     const Font& font() const;
 
-    void setPen(const QPen& pen);
+    void setPen(const Pen& pen);
     inline void setPen(const QColor& color);
     void setNoPen();
-    const QPen& pen() const;
+    const Pen& pen() const;
 
-    void setBrush(const QBrush& brush);
-    const QBrush& brush() const;
+    void setBrush(const Brush& brush);
+    const Brush& brush() const;
 
     void setWorldTransform(const QTransform& matrix, bool combine = false);
     const QTransform& worldTransform() const;
@@ -98,12 +98,12 @@ public:
     void restore();
 
     // drawing
-    void fillPath(const QPainterPath& path, const QBrush& brush);
+    void fillPath(const QPainterPath& path, const Brush& brush);
     void drawPath(const QPainterPath& path);
-    void strokePath(const QPainterPath& path, const QPen& pen);
+    void strokePath(const QPainterPath& path, const Pen& pen);
 
-    void drawLines(const LineF* lines, int lineCount);
-    void drawLines(const PointF* pointPairs, int lineCount);
+    void drawLines(const LineF* lines, size_t lineCount);
+    void drawLines(const PointF* pointPairs, size_t lineCount);
     inline void drawLine(const LineF& line);
     inline void drawLine(const PointF& p1, const PointF& p2);
     inline void drawLines(const std::vector<LineF>& lines);
@@ -120,20 +120,20 @@ public:
     //! Fractions are also passed to this method, and, accordingly, the fractional part is discarded.
     inline void drawRect(int x1, int y1, int w, int h);
 
-    void drawRects(const RectF* rects, int rectCount);
+    void drawRects(const RectF* rects, size_t rectCount);
 
     void drawRoundedRect(const RectF& rect, qreal xRadius, qreal yRadius, Qt::SizeMode mode = Qt::AbsoluteSize);
 
     void drawEllipse(const RectF& rect);
     inline void drawEllipse(const PointF& center, qreal rx, qreal ry);
 
-    void drawPolyline(const PointF* points, int pointCount);
+    void drawPolyline(const PointF* points, size_t pointCount);
     inline void drawPolyline(const PolygonF& polyline);
 
-    void drawPolygon(const PointF* points, int pointCount, Qt::FillRule fillRule = Qt::OddEvenFill);
+    void drawPolygon(const PointF* points, size_t pointCount, Qt::FillRule fillRule = Qt::OddEvenFill);
     inline void drawPolygon(const PolygonF& polygon, Qt::FillRule fillRule = Qt::OddEvenFill);
 
-    void drawConvexPolygon(const PointF* points, int pointCount);
+    void drawConvexPolygon(const PointF* points, size_t pointCount);
     inline void drawConvexPolygon(const PolygonF& polygon);
 
     void drawArc(const RectF& rect, int a, int alen);
@@ -159,10 +159,18 @@ public:
 
     void drawSymbol(const PointF& point, uint ucs4Code);
 
-    void fillRect(const RectF& rect, const QBrush& brush);
+    void fillRect(const RectF& rect, const Brush& brush);
 
+    void drawPixmap(const PointF& point, const Pixmap& pm);
+    void drawTiledPixmap(const RectF& rect, const Pixmap& pm, const PointF& offset = PointF());
+
+#ifndef NO_QT_SUPPORT
     void drawPixmap(const PointF& point, const QPixmap& pm);
     void drawTiledPixmap(const RectF& rect, const QPixmap& pm, const PointF& offset = PointF());
+#endif
+
+    void setClipRect(const RectF& rect);
+    void setClipping(bool enable);
 
     //! NOTE Provider for tests.
     //! We're not ready to use DI (ModuleIoC) here yet
@@ -195,7 +203,7 @@ private:
 
 inline void Painter::setPen(const QColor& color)
 {
-    setPen(QPen(color.isValid() ? color : QColor(Qt::black)));
+    setPen(Pen(color.isValid() ? color : QColor(Qt::black)));
 }
 
 inline void Painter::translate(const PointF& offset)

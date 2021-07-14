@@ -21,8 +21,11 @@
  */
 
 #include <QDir>
+#include <QCoreApplication>
 
 #include "config.h"
+#include "translation.h"
+
 #include "musescoreCore.h"
 #include "style.h"
 #include "mscore.h"
@@ -132,10 +135,7 @@ bool MScore::svgPrinting = false;
 
 double MScore::pixelRatio  = 0.8;         // DPI / logicalDPI
 
-MPaintDevice* MScore::_paintDevice;
-
 Sequencer* MScore::seq = 0;
-MuseScoreCore* MuseScoreCore::mscoreCore;
 
 extern void initDrumset();
 extern QString mscoreGlobalShare;
@@ -230,9 +230,9 @@ const char* toString(Direction val)
 QString toUserString(Direction val)
 {
     switch (val) {
-    case Direction::AUTO: return qApp->translate("Direction", "Auto");
-    case Direction::UP:   return qApp->translate("Direction", "Up");
-    case Direction::DOWN: return qApp->translate("Direction", "Down");
+    case Direction::AUTO: return qtrc("Direction", "Auto");
+    case Direction::UP:   return qtrc("Direction", "Up");
+    case Direction::DOWN: return qtrc("Direction", "Down");
     }
 #if (!defined (_MSCVER) && !defined (_MSC_VER))
     __builtin_unreachable();
@@ -240,18 +240,6 @@ QString toUserString(Direction val)
     // The MSVC __assume() optimizer hint is similar, though not identical, to __builtin_unreachable()
     __assume(0);
 #endif
-}
-
-//---------------------------------------------------------
-//   fillComboBox
-//---------------------------------------------------------
-
-void fillComboBoxDirection(QComboBox* cb)
-{
-    cb->clear();
-    cb->addItem(toUserString(Direction::AUTO), QVariant::fromValue<Direction>(Direction::AUTO));
-    cb->addItem(toUserString(Direction::UP),   QVariant::fromValue<Direction>(Direction::UP));
-    cb->addItem(toUserString(Direction::DOWN), QVariant::fromValue<Direction>(Direction::DOWN));
 }
 
 //---------------------------------------------------------
@@ -447,42 +435,5 @@ const char* MScore::errorGroup()
         }
     }
     return "";
-}
-
-//---------------------------------------------------------
-//   paintDevice
-//---------------------------------------------------------
-
-MPaintDevice* MScore::paintDevice()
-{
-    if (!_paintDevice) {
-        _paintDevice = new MPaintDevice();
-    }
-    return _paintDevice;
-}
-
-//---------------------------------------------------------
-//   metric
-//---------------------------------------------------------
-
-int MPaintDevice::metric(PaintDeviceMetric m) const
-{
-    switch (m) {
-    case QPaintDevice::PdmDpiY:
-        return int(DPI);
-    default:
-//printf("debug: metric %d\n", int(m));
-        return 1;
-    }
-}
-
-//---------------------------------------------------------
-//   paintEngine
-//---------------------------------------------------------
-
-QPaintEngine* MPaintDevice::paintEngine() const
-{
-//printf("paint engine\n");
-    return 0;
 }
 }

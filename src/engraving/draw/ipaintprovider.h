@@ -24,12 +24,14 @@
 
 #include <memory>
 
-#include <QPen>
 #include <QColor>
 
-#include "geometry.h"
+#include "brush.h"
 #include "drawtypes.h"
+#include "geometry.h"
 #include "font.h"
+#include "pen.h"
+#include "pixmap.h"
 
 namespace mu::draw {
 class Painter;
@@ -54,12 +56,12 @@ public:
     virtual void setFont(const Font& font) = 0;
     virtual const Font& font() const = 0;
 
-    virtual void setPen(const QPen& pen) = 0;
+    virtual void setPen(const Pen& pen) = 0;
     virtual void setNoPen() = 0;
-    virtual const QPen& pen() const = 0;
+    virtual const Pen& pen() const = 0;
 
-    virtual void setBrush(const QBrush& brush) = 0;
-    virtual const QBrush& brush() const = 0;
+    virtual void setBrush(const Brush& brush) = 0;
+    virtual const Brush& brush() const = 0;
 
     virtual void save() = 0;
     virtual void restore() = 0;
@@ -69,7 +71,7 @@ public:
 
     // drawing functions
     virtual void drawPath(const QPainterPath& path) = 0;
-    virtual void drawPolygon(const PointF* points, int pointCount, PolygonMode mode) = 0;
+    virtual void drawPolygon(const PointF* points, size_t pointCount, PolygonMode mode) = 0;
 
     virtual void drawText(const PointF& point, const QString& text) = 0;
     virtual void drawText(const RectF& rect, int flags, const QString& text) = 0;
@@ -77,8 +79,16 @@ public:
 
     virtual void drawSymbol(const PointF& point, uint ucs4Code) = 0;
 
+    virtual void drawPixmap(const PointF& point, const Pixmap& pm) = 0;
+    virtual void drawTiledPixmap(const RectF& rect, const Pixmap& pm, const PointF& offset = PointF()) = 0;
+
+#ifndef NO_QT_SUPPORT
     virtual void drawPixmap(const PointF& point, const QPixmap& pm) = 0;
     virtual void drawTiledPixmap(const RectF& rect, const QPixmap& pm, const PointF& offset = PointF()) = 0;
+#endif
+
+    virtual void setClipRect(const RectF& rect) = 0;
+    virtual void setClipping(bool enable) = 0;
 };
 
 using IPaintProviderPtr = std::shared_ptr<IPaintProvider>;

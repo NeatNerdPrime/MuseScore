@@ -31,7 +31,7 @@ Item {
     id: root
 
     property alias instruments: instrumentsView.model
-    property var instrumentOrderTypes: null
+    property var instrumentsModel: null
 
     property bool canLiftInstrument: currentInstrumentIndex > 0
     property bool canLowerInstrument: isInstrumentSelected && (currentInstrumentIndex < instrumentsView.count - 1)
@@ -41,12 +41,22 @@ Item {
 
     property alias navigation: navPanel
 
-    signal unselectInstrumentRequested(string id)
+    signal unselectInstrumentRequested(var index)
     signal orderChanged(string id)
     signal soloistChanged(string id)
 
+    function selectedScoreOrder() {
+        var orders = instrumentsModel.scoreOrders
+        return orders[scoreOrderComboBox.currentIndex].config
+    }
+
     function scrollViewToEnd() {
         instrumentsView.positionViewAtEnd()
+    }
+
+    function unselectCurrentInstrument() {
+        unselectInstrumentRequested(currentInstrumentIndex)
+        currentInstrumentIndex--
     }
 
     function soloistsButtonText(soloist) {
@@ -86,29 +96,24 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
 
-        StyledComboBox {
+        Dropdown {
+            id: scoreOrderComboBox
+
             Layout.fillWidth: true
 
             navigation.name: "Orders"
             navigation.panel: navPanel
             navigation.row: 1
 
-            textRoleName: "text"
-            valueRoleName: "value"
+            textRole: "name"
+            valueRole: "id"
 
-            model: {
-                var resultList = []
-                var orders = root.instrumentOrderTypes
+            model: instrumentsModel.scoreOrders
 
-                for (var i = 0; i < orders.length; ++i) {
-                    resultList.push({"text" : qsTrc("instruments", "Order: ") + orders[i].name, "value" : orders[i].id})
-                }
+            currentIndex: instrumentsModel.selectedScoreOrderIndex
 
-                return resultList
-            }
-
-            onValueChanged: {
-                root.orderChanged(value)
+            onCurrentValueChanged: {
+                root.orderChanged(scoreOrderComboBox.currentValue)
             }
         }
 
@@ -123,8 +128,7 @@ Item {
             icon: IconCode.DELETE_TANK
 
             onClicked: {
-                root.unselectInstrumentRequested(instruments[root.currentInstrumentIndex].id)
-                root.currentInstrumentIndex--
+                root.unselectCurrentInstrument()
             }
         }
     }
@@ -175,6 +179,8 @@ Item {
                 anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
 
+                narrowMargins: true
+
                 visible: root.currentInstrumentIndex === index
 
                 text: soloistsButtonText(modelData.isSoloist)
@@ -189,7 +195,7 @@ Item {
             }
 
             onDoubleClicked: {
-                root.unselectInstrumentRequested(modelData.id)
+                root.unselectCurrentInstrument()
             }
         }
     }

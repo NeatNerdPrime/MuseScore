@@ -25,6 +25,9 @@
 
 #include <QString>
 #include <QByteArray>
+#include <functional>
+
+class QLocalSocket;
 
 namespace mu::ipc {
 static const QString SERVER_NAME("musescore-app-ipc");
@@ -44,6 +47,13 @@ static const QString IPC_WHOIS("ipc_whois");
 static const QString IPC_METAINFO("ipc_metainfo");
 static const QString IPC_PING("ipc_ping");
 
+enum class Code {
+    Undefined = -1,
+    Success = 0,
+    Timeout,
+    AllAnswered
+};
+
 enum class MsgType {
     Undefined = 0,
     Notify,
@@ -53,6 +63,7 @@ enum class MsgType {
 
 struct Msg
 {
+    QString srcID;
     QString destID;
     MsgType type = MsgType::Undefined;
     QString method;
@@ -61,16 +72,13 @@ struct Msg
     bool isValid() const { return type != MsgType::Undefined && !method.isEmpty(); }
 };
 
-struct Meta
-{
-    QString id;
-    bool isValid() const { return !id.isEmpty(); }
-};
-
-static void serialize(const Meta& meta, const Msg& msg, QByteArray& data);
-static void deserialize(const QByteArray& data, Meta& meta, Msg& msg);
+static void serialize(const Msg& msg, QByteArray& data);
+static void deserialize(const QByteArray& data, Msg& msg);
 
 static QString socketErrorToString(int err);
+
+static bool writeToSocket(QLocalSocket* socket, const QByteArray& data);
+static bool readFromSocket(QLocalSocket* socket, std::function<void(const QByteArray& data)> onPackegReaded);
 }
 
 #endif // MU_IPC_IPC_H

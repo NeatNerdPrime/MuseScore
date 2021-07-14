@@ -27,16 +27,13 @@
 
 #include <QLocalSocket>
 
-void mu::ipc::serialize(const Meta& meta, const Msg& msg, QByteArray& data)
+#include "ipclog.h"
+
+void mu::ipc::serialize(const Msg& msg, QByteArray& data)
 {
-    QJsonObject obj;
-
-    QJsonObject metaObj;
-    metaObj["id"] = meta.id;
-
-    obj["meta"] = metaObj;
-
     QJsonObject msgObj;
+
+    msgObj["srcID"] = msg.srcID;
     msgObj["destID"] = msg.destID;
     msgObj["type"] = static_cast<int>(msg.type);
     msgObj["method"] = msg.method;
@@ -47,20 +44,15 @@ void mu::ipc::serialize(const Meta& meta, const Msg& msg, QByteArray& data)
     }
     msgObj["args"] = argsArr;
 
-    obj["msg"] = msgObj;
-
-    data = QJsonDocument(obj).toJson(QJsonDocument::Compact);
+    data = QJsonDocument(msgObj).toJson(QJsonDocument::Compact);
 }
 
-void mu::ipc::deserialize(const QByteArray& data, Meta& meta, Msg& msg)
+void mu::ipc::deserialize(const QByteArray& data, Msg& msg)
 {
     QJsonDocument doc = QJsonDocument::fromJson(data);
-    QJsonObject obj = doc.object();
+    QJsonObject msgObj = doc.object();
 
-    QJsonObject metaObj = obj.value("meta").toObject();
-    meta.id = metaObj.value("id").toString();
-
-    QJsonObject msgObj = obj.value("msg").toObject();
+    msg.srcID =  msgObj.value("srcID").toString();
     msg.destID =  msgObj.value("destID").toString();
     msg.type = static_cast<MsgType>(msgObj.value("type").toInt());
     msg.method = msgObj.value("method").toString();
@@ -87,4 +79,67 @@ QString mu::ipc::socketErrorToString(int err)
     case QLocalSocket::OperationError: return "OperationError";
     }
     return "Unknown error";
+}
+
+bool mu::ipc::writeToSocket(QLocalSocket* socket, const QByteArray& data)
+{
+    QDataStream stream(socket);
+    stream.writeBytes(data.constData(), data.size());
+    bool ok = socket->waitForBytesWritten(ipc::TIMEOUT_MSEC);
+    if (!ok) {
+        LOGE() << "failed write to socket, err: " << socket->errorString();
+    }
+    return ok;
+}
+
+bool mu::ipc::readFromSocket(QLocalSocket* socket, std::function<void(const QByteArray& data)> onPackegReaded)
+{
+    qint64 bytesAvailable = socket->bytesAvailable();
+    if (bytesAvailable < (qint64)sizeof(quint32)) {
+        return false;
+    }
+
+    int packageCount = 0;
+    QDataStream stream(socket);
+
+    auto readPackage = [socket, &stream, onPackegReaded]() {
+        QByteArray data;
+        quint32 remaining;
+        stream >> remaining;
+        data.resize(remaining);
+
+        qint64 available = socket->bytesAvailable();
+        if (available < remaining) {
+            if (!socket->waitForReadyRead(ipc::TIMEOUT_MSEC)) {
+                LOGE() << "failed read, remaining: " << remaining << ", available: " << available << ", err: " << socket->errorString();
+                return false;
+            }
+        }
+
+        char* ptr = data.data();
+        int readed = stream.readRawData(ptr, remaining);
+        if (quint32(readed) != remaining) {
+            LOGE() << "failed read from socket";
+            return false;
+        }
+
+        onPackegReaded(data);
+        return true;
+    };
+
+    bool ok = true;
+    while (socket->bytesAvailable() > 0) {
+        ok = readPackage();
+        ++packageCount;
+        if (!ok) {
+            break;
+        }
+    }
+
+    IPCLOG() << "readed package count: " << packageCount;
+
+    if (!ok) {
+        LOGE() << "failed read package";
+    }
+    return ok;
 }

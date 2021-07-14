@@ -55,12 +55,12 @@ public:
     void setFont(const Font& font) override;
     const Font& font() const override;
 
-    void setPen(const QPen& pen) override;
+    void setPen(const Pen& pen) override;
     void setNoPen() override;
-    const QPen& pen() const override;
+    const Pen& pen() const override;
 
-    void setBrush(const QBrush& brush) override;
-    const QBrush& brush() const override;
+    void setBrush(const Brush& brush) override;
+    const Brush& brush() const override;
 
     void save() override;
     void restore() override;
@@ -70,7 +70,7 @@ public:
 
     // drawing functions
     void drawPath(const QPainterPath& path) override;
-    void drawPolygon(const PointF* points, int pointCount, PolygonMode mode) override;
+    void drawPolygon(const PointF* points, size_t pointCount, PolygonMode mode) override;
 
     void drawText(const PointF& point, const QString& text) override;
     void drawText(const RectF& rect, int flags, const QString& text) override;
@@ -78,14 +78,22 @@ public:
 
     void drawSymbol(const PointF& point, uint ucs4Code) override;
 
+    void drawPixmap(const PointF& point, const Pixmap& pm) override;
+    void drawTiledPixmap(const RectF& rect, const Pixmap& pm, const PointF& offset = PointF()) override;
+
     void drawPixmap(const PointF& point, const QPixmap& pm) override;
     void drawTiledPixmap(const RectF& rect, const QPixmap& pm, const PointF& offset = PointF()) override;
 
+    void setClipRect(const RectF& rect) override;
+    void setClipping(bool enable) override;
+
 private:
     QPainter* m_painter = nullptr;
-    Font m_font;
     bool m_overship = false;
     DrawObjectsLogger* m_drawObjectsLogger = nullptr;
+    Font m_font;
+    Pen m_pen;
+    Brush m_brush;
 
     QTransform m_transform;
 };

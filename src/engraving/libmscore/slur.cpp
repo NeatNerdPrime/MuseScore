@@ -35,6 +35,8 @@
 #include "articulation.h"
 
 #include "draw/transform.h"
+#include "draw/pen.h"
+#include "draw/brush.h"
 
 using namespace mu;
 using namespace mu::draw;
@@ -47,34 +49,35 @@ namespace Ms {
 void SlurSegment::draw(mu::draw::Painter* painter) const
 {
     TRACE_OBJ_DRAW;
-    QPen pen(curColor());
+    using namespace mu::draw;
+    Pen pen(curColor());
     qreal mag = staff() ? staff()->staffMag(slur()->tick()) : 1.0;
 
     //Replace generic Qt dash patterns with improved equivalents to show true dots (keep in sync with tie.cpp)
-    QVector<qreal> dotted     = { 0.01, 1.99 };   // tighter than Qt DotLine equivalent - woud be { 0.01, 2.99 }
-    QVector<qreal> dashed     = { 3.00, 3.00 };   // Compensating for caps. Qt default DashLine is { 4.0, 2.0 }
-    QVector<qreal> wideDashed = { 5.00, 6.00 };
+    std::vector<double> dotted     = { 0.01, 1.99 };   // tighter than Qt PenStyle::DotLine equivalent - woud be { 0.01, 2.99 }
+    std::vector<double> dashed     = { 3.00, 3.00 };   // Compensating for caps. Qt default PenStyle::DashLine is { 4.0, 2.0 }
+    std::vector<double> wideDashed = { 5.00, 6.00 };
 
     switch (slurTie()->lineType()) {
     case 0:
-        painter->setBrush(QBrush(pen.color()));
-        pen.setCapStyle(Qt::RoundCap);
-        pen.setJoinStyle(Qt::RoundJoin);
+        painter->setBrush(Brush(pen.color()));
+        pen.setCapStyle(PenCapStyle::RoundCap);
+        pen.setJoinStyle(PenJoinStyle::RoundJoin);
         pen.setWidthF(score()->styleP(Sid::SlurEndWidth) * mag);
         break;
     case 1:
-        painter->setBrush(Qt::NoBrush);
-        pen.setCapStyle(Qt::RoundCap);           // round dots
+        painter->setBrush(BrushStyle::NoBrush);
+        pen.setCapStyle(PenCapStyle::RoundCap);           // round dots
         pen.setDashPattern(dotted);
         pen.setWidthF(score()->styleP(Sid::SlurDottedWidth) * mag);
         break;
     case 2:
-        painter->setBrush(Qt::NoBrush);
+        painter->setBrush(BrushStyle::NoBrush);
         pen.setDashPattern(dashed);
         pen.setWidthF(score()->styleP(Sid::SlurDottedWidth) * mag);
         break;
     case 3:
-        painter->setBrush(Qt::NoBrush);
+        painter->setBrush(BrushStyle::NoBrush);
         pen.setDashPattern(wideDashed);
         pen.setWidthF(score()->styleP(Sid::SlurDottedWidth) * mag);
         break;
@@ -117,12 +120,12 @@ bool SlurSegment::edit(EditData& ed)
 {
     Slur* sl = slur();
 
-    if (ed.key == Qt::Key_X) {
+    if (ed.key == Qt::Key_X && !ed.modifiers) {
         sl->undoChangeProperty(Pid::SLUR_DIRECTION, QVariant::fromValue<Direction>(sl->up() ? Direction::DOWN : Direction::UP));
         sl->layout();
         return true;
     }
-    if (ed.key == Qt::Key_Home) {
+    if (ed.key == Qt::Key_Home && !ed.modifiers) {
         ups(ed.curGrip).off = PointF();              //TODO
         sl->layout();
         return true;
@@ -244,7 +247,7 @@ void SlurSegment::changeAnchor(EditData& ed, Element* element)
     if (spanner()->spannerSegments().size() != segments) {
         const std::vector<SpannerSegment*>& ss = spanner()->spannerSegments();
         SlurSegment* newSegment = toSlurSegment(ed.curGrip == Grip::END ? ss.back() : ss.front());
-        ed.view->startEdit(newSegment, ed.curGrip);
+        ed.view()->startEdit(newSegment, ed.curGrip);
         triggerLayout();
     }
 }

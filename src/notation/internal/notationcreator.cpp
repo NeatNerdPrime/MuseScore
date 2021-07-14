@@ -21,14 +21,14 @@
  */
 #include "notationcreator.h"
 
-#include "masternotation.h"
+#include "notationproject.h"
 #include "excerptnotation.h"
 
 using namespace mu::notation;
 
-IMasterNotationPtr NotationCreator::newMasterNotation() const
+INotationProjectPtr NotationCreator::newNotationProject() const
 {
-    return std::make_shared<MasterNotation>();
+    return std::make_shared<NotationProject>();
 }
 
 IExcerptNotationPtr NotationCreator::newExcerptNotation() const

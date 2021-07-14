@@ -31,6 +31,8 @@
 #include "notation/inotationwritersregister.h"
 #include "importexport/imagesexport/iimagesexportconfiguration.h"
 #include "importexport/musicxml/imusicxmlconfiguration.h"
+#include "importexport/midi/imidiconfiguration.h"
+#include "importexport/audioexport/iaudioexportconfiguration.h"
 #include "iexportscorescenario.h"
 
 class QItemSelectionModel;
@@ -46,6 +48,8 @@ class ExportDialogModel : public QAbstractListModel
     INJECT(userscores, notation::INotationWritersRegister, writers)
     INJECT(userscores, iex::imagesexport::IImagesExportConfiguration, imageExportConfiguration)
     INJECT(userscores, iex::musicxml::IMusicXmlConfiguration, musicXmlConfiguration)
+    INJECT(userscores, iex::midi::IMidiImportExportConfiguration, midiImportExportConfiguration)
+    INJECT(userscores, iex::audioexport::IAudioExportConfiguration, audioExportConfiguration)
     INJECT(userscores, IExportScoreScenario, exportScoreScenario)
 
     Q_PROPERTY(int selectionLength READ selectionLength NOTIFY selectionChanged)

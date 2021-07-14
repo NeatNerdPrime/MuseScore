@@ -21,13 +21,19 @@
  */
 #include "mscznotationreader.h"
 
+#include <QFile>
+#include <QByteArray>
+#include <QBuffer>
+
 #include "libmscore/score.h"
 #include "notation/notationerrors.h"
+#include "engraving/compat/mscxcompat.h"
 
 using namespace mu::notation;
+using namespace mu::engraving;
 
-mu::Ret MsczNotationReader::read(Ms::MasterScore* score, const io::path& path)
+mu::Ret MsczNotationReader::read(Ms::MasterScore* score, const io::path& path, const Options& options)
 {
-    Ms::Score::FileError err = score->loadMsc(path.toQString(), true);
-    return mu::notation::scoreFileErrorToRet(err);
+    Ms::Score::FileError err = compat::loadMsczOrMscx(score, path.toQString(), options.contains(OptionKey::ForceMode));
+    return mu::notation::scoreFileErrorToRet(err, path);
 }

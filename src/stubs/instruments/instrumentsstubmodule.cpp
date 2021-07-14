@@ -32,7 +32,7 @@
 #include "ui/iinteractiveuriregister.h"
 
 using namespace mu::instruments;
-using namespace mu::framework;
+using namespace mu::modularity;
 using namespace mu::ui;
 
 static void instruments_init_qrc()
@@ -69,5 +69,5 @@ void InstrumentsStubModule::registerResources()
 
 void InstrumentsStubModule::registerUiTypes()
 {
-    framework::ioc()->resolve<ui::IUiEngine>(moduleName())->addSourceImportPath(instruments_QML_IMPORT);
+    modularity::ioc()->resolve<ui::IUiEngine>(moduleName())->addSourceImportPath(instruments_QML_IMPORT);
 }

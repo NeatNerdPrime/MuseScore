@@ -72,7 +72,7 @@ static QString userAgent()
 void CloudConfiguration::init()
 {
     if (settings()->value(CLIENT_ID_KEY).isNull()) {
-        settings()->setValue(CLIENT_ID_KEY, Val(QVariant(generateClientId())));
+        settings()->setSharedValue(CLIENT_ID_KEY, Val(QVariant(generateClientId())));
     }
 }
 
@@ -90,6 +90,11 @@ RequestHeaders CloudConfiguration::headers() const
 QByteArray CloudConfiguration::clientId() const
 {
     return settings()->value(CLIENT_ID_KEY).toQVariant().toByteArray();
+}
+
+QByteArray CloudConfiguration::uploadingLicense() const
+{
+    return "all-rights-reserved";
 }
 
 QUrl CloudConfiguration::authorizationUrl() const
@@ -124,7 +129,7 @@ QUrl CloudConfiguration::uploadingApiUrl() const
 
 mu::io::path CloudConfiguration::tokensFilePath() const
 {
-    return globalConfiguration()->dataPath() + "/cred.dat";
+    return globalConfiguration()->userAppDataPath() + "/cred.dat";
 }
 
 QString CloudConfiguration::apiRootUrl() const

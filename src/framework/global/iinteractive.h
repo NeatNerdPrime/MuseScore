@@ -30,8 +30,7 @@
 #include "retval.h"
 #include "uri.h"
 
-namespace mu {
-namespace framework {
+namespace mu::framework {
 class IInteractive : MODULE_EXPORT_INTERFACE
 {
     INTERFACE_ID(IInteractive)
@@ -45,6 +44,7 @@ public:
         Ok,
         Save,
         SaveAll,
+        DontSave,
         Open,
         Yes,
         YesToAll,
@@ -129,12 +129,18 @@ public:
                         int defBtn = int(Button::NoButton), const Options& options = {}) const = 0;
 
     // warning
-    virtual Result warning(const std::string& title, const std::string& text, const ButtonDatas& buttons = {},
-                           int defBtn = int(Button::NoButton), const Options& options = {}) const = 0;
+    virtual Result warning(const std::string& title, const std::string& text, const Buttons& buttons = {},
+                           const Button& def = Button::NoButton, const Options& options = {}) const = 0;
+
+    virtual Result warning(const std::string& title, const Text& text, const ButtonDatas& buttons = {}, int defBtn = int(Button::NoButton),
+                           const Options& options = {}) const = 0;
 
     // error
-    virtual Result error(const std::string& title, const std::string& text, const ButtonDatas& buttons = {},
-                         int defBtn = int(Button::NoButton), const Options& options = {}) const = 0;
+    virtual Result error(const std::string& title, const std::string& text, const Buttons& buttons = {},
+                         const Button& def = Button::NoButton, const Options& options = {}) const = 0;
+
+    virtual Result error(const std::string& title, const Text& text, const ButtonDatas& buttons = {}, int defBtn = int(Button::NoButton),
+                         const Options& options = {}) const = 0;
 
     // files
     virtual io::path selectOpeningFile(const QString& title, const io::path& dir, const QString& filter) = 0;
@@ -157,7 +163,6 @@ public:
     virtual Ret openUrl(const std::string& url) const = 0;
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(IInteractive::Options)
-}
 }
 
 #endif // MU_FRAMEWORK_IINTERACTIVE_H

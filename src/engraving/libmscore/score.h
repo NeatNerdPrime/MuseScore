@@ -36,12 +36,23 @@
 #include "config.h"
 #include "input.h"
 #include "instrument.h"
+#include "scoreorder.h"
 #include "select.h"
 #include "synthesizerstate.h"
 #include "mscoreview.h"
 #include "spannermap.h"
 #include "layoutbreak.h"
 #include "property.h"
+
+#include "io/msczwriter.h"
+#include "io/msczreader.h"
+
+class QMimeData;
+
+namespace mu::engraving {
+class ScoreAccess;
+class EngravingProject;
+}
 
 namespace mu::score {
 class AccessibleScore;
@@ -105,7 +116,6 @@ class UndoStack;
 class Volta;
 class XmlWriter;
 class Channel;
-class ScoreOrder;
 struct Interval;
 struct TEvent;
 struct LayoutContext;
@@ -424,7 +434,6 @@ public:
 class Score : public QObject, public ScoreElement
 {
     Q_OBJECT
-
 public:
     enum class FileError : char {
         FILE_NO_ERROR,
@@ -503,7 +512,7 @@ private:
                                                 ///< saves will not overwrite the backup file.
     bool _defaultsRead        { false };        ///< defaults were read at MusicXML import, allow export of defaults in convertermode
     bool _isPalette           { false };
-    ScoreOrder* _scoreOrder   { nullptr };      ///< used for score ordering
+    ScoreOrder _scoreOrder;                     ///< used for score ordering
 
     int _mscVersion { MSCVERSION };     ///< version of current loading *.msc file
 
@@ -539,7 +548,6 @@ private:
     void removeChordRest(ChordRest* cr, bool clearSegment);
     void cmdMoveRest(Rest*, Direction);
     void cmdMoveLyrics(Lyrics*, Direction);
-    void cmdIncDecDuration(int nSteps, bool stepDotted = false);
 
     void createMMRest(Measure*, Measure*, const Fraction&);
 
@@ -560,7 +568,6 @@ private:
     void selectAdd(Element* e);
     void selectRange(Element* e, int staffIdx);
 
-    void cmdAddFret(int fret);
     void cmdToggleVisible();
 
     void putNote(const Position&, bool replace);
@@ -596,14 +603,16 @@ protected:
     inline virtual Movements* movements();
     inline virtual const Movements* movements() const;
 
+    friend class MasterScore;
+    Score();
+    Score(MasterScore*, bool forcePartStyle = true);
+    Score(MasterScore*, const MStyle&);
+
 signals:
     void posChanged(POS, unsigned);
     void playlistChanged();
 
 public:
-    Score();
-    Score(MasterScore*, bool forcePartStyle = true);
-    Score(MasterScore*, const MStyle&);
     Score(const Score&) = delete;
     Score& operator=(const Score&) = delete;
     virtual ~Score();
@@ -649,6 +658,7 @@ public:
     void cmdAddBracket();
     void cmdAddParentheses();
     void cmdAddBraces();
+    void cmdAddFret(int fret);
     void cmdSetBeamMode(Beam::Mode);
     void cmdRemovePart(Part*);
     void cmdAddTie(bool addToChord = false);
@@ -667,6 +677,7 @@ public:
     void cmdHalfDuration() { cmdIncDecDuration(1, false); }
     void cmdIncDurationDotted() { cmdIncDecDuration(-1, true); }
     void cmdDecDurationDotted() { cmdIncDecDuration(1, true); }
+    void cmdIncDecDuration(int nSteps, bool stepDotted = false);
     void cmdToggleLayoutBreak(LayoutBreak::Type);
     void cmdAddMeasureRepeat(Measure*, int numMeasures, int staffIdx);
     bool makeMeasureRepeatGroup(Measure*, int numMeasures, int staffIdx);
@@ -803,8 +814,8 @@ public:
     bool checkTimeDelete(Segment*, Segment*);
     void timeDelete(Measure*, Segment*, const Fraction&);
 
-    void startCmd();                            // start undoable command
-    void endCmd(const bool isCmdFromInspector = false, bool rollback = false);       // end undoable command
+    void startCmd();                    // start undoable command
+    void endCmd(bool rollback = false); // end undoable command
     void update() { update(true); }
     void undoRedo(bool undo, EditData*);
 
@@ -835,7 +846,6 @@ public:
 
     void changeSelectedNotesVoice(int);
 
-    void colorItem(Element*);
     QList<Part*>& parts() { return _parts; }
     const QList<Part*>& parts() const { return _parts; }
 
@@ -860,10 +870,8 @@ public:
     void setShowInstrumentNames(bool v) { _showInstrumentNames = v; }
     void setShowVBox(bool v) { _showVBox = v; }
 
-    bool saveFile(QFileInfo& info);
-    bool saveFile(QIODevice* f, bool msczFormat, bool onlySelection = false);
-    bool saveCompressedFile(QFileInfo&, bool onlySelection, bool createThumbnail = true);
-    bool saveCompressedFile(QIODevice*, const QString& fileName, bool onlySelection, bool createThumbnail = true);
+    bool writeScore(QIODevice* f, bool msczFormat, bool onlySelection = false);
+    bool writeMscz(mu::engraving::MsczWriter& msczWriter, bool onlySelection = false, bool createThumbnail = true);
 
     void print(mu::draw::Painter* printer, int page);
     ChordRest* getSelectedChordRest() const;
@@ -907,7 +915,7 @@ public:
     MeasureBase* getNextPrevSectionBreak(MeasureBase*, bool) const;
     Element* getScoreElementOfMeasureBase(MeasureBase*) const;
 
-    void cmd(const QAction*, EditData&);
+    void cmd(const QString&, EditData&);
     int fileDivision(int t) const { return ((qint64)t * MScore::division + _fileDivision / 2) / _fileDivision; }
     void setFileDivision(int t) { _fileDivision = t; }
 
@@ -1028,8 +1036,9 @@ public:
     void setEnableVerticalSpread(bool val);
     qreal maxSystemDistance() const;
 
-    ScoreOrder* scoreOrder() const { return _scoreOrder; }
-    void setScoreOrder(ScoreOrder* order) { _scoreOrder = order; }
+    ScoreOrder scoreOrder() const;
+    void setScoreOrder(ScoreOrder order);
+    void setBracketsAndBarlines();
 
     void lassoSelect(const mu::RectF&);
     void lassoSelectEnd(bool);
@@ -1368,6 +1377,8 @@ class MasterScore : public Score
     QSet<int> occupiedMidiChannels;                   // each entry is port*16+channel, port range: 0-inf, channel: 0-15
     unsigned int searchMidiMappingFrom = 0;           // makes getting next free MIDI mapping faster
 
+    std::shared_ptr<mu::engraving::EngravingProject> m_project = nullptr;
+
     void parseVersion(const QString&);
     void reorderMidiMapping();
     void rebuildExcerptsMidiMapping();
@@ -1378,14 +1389,28 @@ class MasterScore : public Score
     QFileInfo info;
 
     bool read(XmlReader&);
+    FileError read1(XmlReader&, bool ignoreVersionError, const std::function<int()>& readStyleDefaultsVersion);
+    FileError read114(XmlReader&);
+    FileError read206(XmlReader&);
+    FileError read302(XmlReader&);
+
     void setPrev(MasterScore* s) { _prev = s; }
     void setNext(MasterScore* s) { _next = s; }
 
+    friend class mu::engraving::ScoreAccess;
+    friend class mu::engraving::EngravingProject;
+    MasterScore(std::shared_ptr<mu::engraving::EngravingProject> project);
+    MasterScore(const MStyle&, std::shared_ptr<mu::engraving::EngravingProject> project);
+
+    FileError loadMscz(const mu::engraving::MsczReader& msczFile, bool ignoreVersionError);
+
 public:
-    MasterScore();
-    MasterScore(const MStyle&);
+
     virtual ~MasterScore();
     MasterScore* clone();
+
+    Score* createScore();
+    Score* createScore(const MStyle& s);
 
     virtual bool isMaster() const override { return true; }
     virtual bool readOnly() const override { return _readOnly; }
@@ -1435,17 +1460,7 @@ public:
     bool isSavable() const;
     void setTempomap(TempoMap* tm);
 
-    bool saveFile(bool generateBackup = true);
-    FileError read1(XmlReader&, bool ignoreVersionError);
-    FileError loadCompressedMsc(QIODevice*, bool ignoreVersionError);
-    FileError loadMsc(QString name, bool ignoreVersionError);
-    FileError loadMsc(QString name, QIODevice*, bool ignoreVersionError);
-    FileError read114(XmlReader&);
-    FileError read206(XmlReader&);
-    FileError read302(XmlReader&);
-    QByteArray readToBuffer();
-    QByteArray readCompressedToBuffer();
-    int readStyleDefaultsVersion();
+    int readStyleDefaultsVersion(const QByteArray& scoreData, const QString& completeBaseName);
     int styleDefaultByMscVersion(const int mscVer) const;
 
     Omr* omr() const { return _omr; }
@@ -1480,10 +1495,10 @@ public:
     Fraction pos(POS pos) const { return _pos[int(pos)]; }
     void setPos(POS pos, Fraction tick);
 
-    void addExcerpt(Excerpt*);
+    void addExcerpt(Excerpt*, int index=-1);
     void removeExcerpt(Excerpt*);
     void deleteExcerpt(Excerpt*);
-    void initExcerpt(Excerpt*);
+    void initExcerpt(Excerpt*, bool);
 
     void setPlaybackScore(Score*);
     Score* playbackScore() { return _playbackScore; }

@@ -53,7 +53,7 @@ QVariantList StaffSettingsModel::allStaffTypes() const
     for (notation::StaffType type: notation::allStaffTypes()) {
         QVariantMap obj;
 
-        obj["title"] = staffTypeToString(type);
+        obj["text"] = staffTypeToString(type);
         obj["value"] = static_cast<int>(type);
 
         result << obj;
@@ -69,7 +69,7 @@ QString StaffSettingsModel::staffType() const
 
 void StaffSettingsModel::setStaffType(int type)
 {
-    auto type_ = static_cast<notation::StaffType>(type);
+    auto type_ = static_cast<StaffType>(type);
 
     if (m_type == type_ || !parts()) {
         return;

@@ -402,8 +402,7 @@ QList<int> ExportDialogModel::availableBitRates() const
 
 int ExportDialogModel::bitRate() const
 {
-    NOT_IMPLEMENTED;
-    return 192;
+    return audioExportConfiguration()->exportMp3Bitrate();
 }
 
 void ExportDialogModel::setBitRate(int bitRate)
@@ -412,7 +411,7 @@ void ExportDialogModel::setBitRate(int bitRate)
         return;
     }
 
-    NOT_IMPLEMENTED;
+    audioExportConfiguration()->setExportMp3Bitrate(bitRate);
     emit bitRateChanged(bitRate);
 }
 
@@ -434,8 +433,7 @@ void ExportDialogModel::setMidiExpandRepeats(bool expandRepeats)
 
 bool ExportDialogModel::midiExportRpns() const
 {
-    NOT_IMPLEMENTED;
-    return true;
+    return midiImportExportConfiguration()->isMidiExportRpns();
 }
 
 void ExportDialogModel::setMidiExportRpns(bool exportRpns)
@@ -444,7 +442,7 @@ void ExportDialogModel::setMidiExportRpns(bool exportRpns)
         return;
     }
 
-    NOT_IMPLEMENTED;
+    midiImportExportConfiguration()->setIsMidiExportRpns(exportRpns);
     emit midiExportRpnsChanged(exportRpns);
 }
 

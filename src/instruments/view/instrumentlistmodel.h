@@ -26,7 +26,7 @@
 
 #include "modularity/ioc.h"
 #include "async/asyncable.h"
-#include "iinstrumentsrepository.h"
+#include "notation/iinstrumentsrepository.h"
 #include "context/iglobalcontext.h"
 
 namespace mu::instruments {
@@ -34,22 +34,28 @@ class InstrumentListModel : public QObject, public async::Asyncable
 {
     Q_OBJECT
 
-    INJECT(instruments, IInstrumentsRepository, repository)
+    INJECT(instruments, notation::IInstrumentsRepository, repository)
     INJECT(instruments, context::IGlobalContext, globalContext)
 
     Q_PROPERTY(QVariantList families READ families NOTIFY dataChanged)
     Q_PROPERTY(QVariantList groups READ groups NOTIFY dataChanged)
     Q_PROPERTY(QVariantList instruments READ instruments NOTIFY dataChanged)
+    Q_PROPERTY(QVariantList scoreOrders READ scoreOrders NOTIFY scoreOrdersChanged)
+    Q_PROPERTY(QVariant selectedScoreOrderIndex READ selectedScoreOrderIndex WRITE setSelectedScoreOrderIndex NOTIFY scoreOrdersChanged)
     Q_PROPERTY(QVariantList selectedInstruments READ selectedInstruments NOTIFY selectedInstrumentsChanged)
 
 public:
     InstrumentListModel(QObject* parent = nullptr);
 
-    Q_INVOKABLE void load(bool canSelectMultipleInstruments, const QString& currentInstrumentId, const QString& selectedPartIds);
+    Q_INVOKABLE void load(bool canSelectMultipleInstruments, const QString& currentInstrumentId, const QString& currentScoreOrderId,
+                          const QString& selectedPartIds);
 
     QVariantList families() const;
     QVariantList groups() const;
     QVariantList instruments() const;
+    QVariantList scoreOrders() const;
+    QVariant selectedScoreOrderIndex() const;
+    void setSelectedScoreOrderIndex(const QVariant& index);
     QVariantList selectedInstruments() const;
 
     Q_INVOKABLE QString selectedGroupId() const;
@@ -57,17 +63,14 @@ public:
     Q_INVOKABLE void selectFamily(const QString& familyId);
     Q_INVOKABLE void selectGroup(const QString& groupId);
 
-    Q_INVOKABLE void selectInstrument(const QString& instrumentId, const QString& transpositionId = QString());
-    Q_INVOKABLE void unselectInstrument(const QString& instrumentId);
-    Q_INVOKABLE void swapSelectedInstruments(int firstIndex, int secondIndex);
-    Q_INVOKABLE void toggleSoloist(const QString& instrumentId);
+    Q_INVOKABLE void selectInstrument(const QString& instrumentName, const QString& traitName = QString());
+    Q_INVOKABLE void unselectInstrument(int instrumentIndex);
+    Q_INVOKABLE void swapSelectedInstruments(int firstInstrumentIndex, int secondInstrumentIndex);
+    Q_INVOKABLE void toggleSoloist(int instrumentIndex);
 
     Q_INVOKABLE void setSearchText(const QString& text);
 
-    Q_INVOKABLE QVariantList instrumentOrderTypes() const;
-    Q_INVOKABLE void selectOrderType(const QString& id);
-
-    Q_INVOKABLE QString findInstrument(const QString& instrumentId) const;
+    Q_INVOKABLE void selectScoreOrder(const QString& orderId);
 
 signals:
     void dataChanged();
@@ -78,50 +81,73 @@ signals:
     void searchStringChanged(QString searchString);
     void selectedInstrumentsChanged();
 
+    void selectedOrderChanged(QString familyId);
+
+    void scoreOrdersChanged();
+
 private:
-    void initSelectedInstruments(const notation::IDList& selectedPartIds);
-    notation::INotationPartsPtr notationParts() const;
-
-    void sortInstruments(QVariantList& instruments) const;
-
-    int findInstrumentIndex(const QString& instrumentId) const;
-
-    bool isSearching() const;
-
-    void setInstrumentsMeta(const InstrumentsMeta& meta);
-    QVariantMap allInstrumentsItem() const;
-    InstrumentGroupList sortedGroupList() const;
-
-    QVariantMap defaultInstrumentTranspositionItem() const;
-
-    void updateFamilyStateBySearch();
-
-    bool isInstrumentAccepted(const Instrument& instrument, bool compareWithSelectedGroup = true) const;
-
-    InstrumentTemplate instrumentTemplate(const QString& instrumentId) const;
-
-    bool m_canSelectMultipleInstruments = false;
-
-    QString m_selectedFamilyId;
-    QString m_selectedGroupId;
-    QString m_savedFamilyId;
-
-    InstrumentsMeta m_instrumentsMeta;
-    QString m_searchText;
-
     struct SelectedInstrumentInfo
     {
         QString id;
         QString name;
-        bool isSoloist;
-        bool isExistingPart;
-        Transposition transposition;
-        Instrument config;
+        QString familyId;
+        bool isSoloist = false;
+        bool isExistingPart = false;
+        notation::Instrument config;
 
         bool operator==(const SelectedInstrumentInfo& info) const { return id == info.id; }
     };
 
+    struct ScoreOrderInfo
+    {
+        QString id;
+        bool customized = false;
+        notation::ScoreOrder info;
+
+        bool operator==(const ScoreOrderInfo& info) const { return id == info.id; }
+    };
+
+    void initSelectedInstruments(const notation::IDList& selectedPartIds);
+    notation::INotationPartsPtr notationParts() const;
+    void initScoreOrders(const QString& currentId);
+
+    void sortInstruments(QVariantList& instruments) const;
+
+    bool isSearching() const;
+
+    void setInstrumentsMeta(const notation::InstrumentsMeta& meta);
+    QVariantMap allInstrumentsItem() const;
+
+    void updateFamilyStateBySearch();
+
+    bool isInstrumentAccepted(const notation::Instrument& instrument, bool compareWithSelectedGroup = true) const;
+
+    notation::Instrument instrumentById(const QString& instrumentId) const;
+
+    int indexOfScoreOrderId(const QString& id) const;
+    void sortSelectedInstruments();
+    int sortInstrumentsIndex(const SelectedInstrumentInfo& info) const;
+    int instrumentInsertIndex(const SelectedInstrumentInfo& info) const;
+    bool matchesScoreOrder() const;
+    void checkScoreOrderMatching(bool block);
+    void makeCustomizedScoreOrder(const ScoreOrderInfo& order);
+
+    bool isInstrumentIndexValid(int index) const;
+
+    bool m_canSelectMultipleInstruments = false;
+
+    bool m_blockSortingInstruments = false;
+
+    QString m_selectedFamilyId;
+    QString m_selectedGroupId;
+    QString m_savedFamilyId;
+    int m_selectedScoreOrderIndex = -1;
+
+    notation::InstrumentsMeta m_instrumentsMeta;
+    QString m_searchText;
+
     QList<SelectedInstrumentInfo> m_selectedInstruments;
+    QList<ScoreOrderInfo> m_scoreOrders;
 };
 }
 

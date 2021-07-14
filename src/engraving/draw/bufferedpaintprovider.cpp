@@ -158,27 +158,27 @@ const Font& BufferedPaintProvider::font() const
     return currentState().font;
 }
 
-void BufferedPaintProvider::setPen(const QPen& pen)
+void BufferedPaintProvider::setPen(const Pen& pen)
 {
     editableState().pen = pen;
 }
 
 void BufferedPaintProvider::setNoPen()
 {
-    editableState().pen.setStyle(Qt::NoPen);
+    editableState().pen.setStyle(PenStyle::NoPen);
 }
 
-const QPen& BufferedPaintProvider::pen() const
+const Pen& BufferedPaintProvider::pen() const
 {
     return currentState().pen;
 }
 
-void BufferedPaintProvider::setBrush(const QBrush& brush)
+void BufferedPaintProvider::setBrush(const Brush& brush)
 {
     editableState().brush = brush;
 }
 
-const QBrush& BufferedPaintProvider::brush() const
+const Brush& BufferedPaintProvider::brush() const
 {
     return currentState().brush;
 }
@@ -208,9 +208,9 @@ void BufferedPaintProvider::drawPath(const QPainterPath& path)
 {
     const DrawData::State& st = currentState();
     DrawMode mode = DrawMode::StrokeAndFill;
-    if (st.pen.style() == Qt::NoPen) {
+    if (st.pen.style() == PenStyle::NoPen) {
         mode = DrawMode::Fill;
-    } else if (st.brush.style() == Qt::NoBrush) {
+    } else if (st.brush.style() == BrushStyle::NoBrush) {
         mode = DrawMode::Stroke;
     } else {
         LOGW() << "not set pen or brush, path will not draw";
@@ -219,10 +219,10 @@ void BufferedPaintProvider::drawPath(const QPainterPath& path)
     editableData().paths.push_back({ path, st.pen, st.brush, mode });
 }
 
-void BufferedPaintProvider::drawPolygon(const PointF* points, int pointCount, PolygonMode mode)
+void BufferedPaintProvider::drawPolygon(const PointF* points, size_t pointCount, PolygonMode mode)
 {
     PolygonF pol(pointCount);
-    for (int i = 0; i < pointCount; ++i) {
+    for (size_t i = 0; i < pointCount; ++i) {
         pol[i] = PointF(points[i].x(), points[i].y());
     }
     editableData().polygons.push_back(DrawPolygon { pol, mode });
@@ -249,12 +249,12 @@ void BufferedPaintProvider::drawSymbol(const PointF& point, uint ucs4Code)
     drawText(point, QString::fromUcs4(&ucs4Code, 1));
 }
 
-void BufferedPaintProvider::drawPixmap(const PointF& p, const QPixmap& pm)
+void BufferedPaintProvider::drawPixmap(const PointF& p, const Pixmap& pm)
 {
     editableData().pixmaps.push_back(DrawPixmap { p, pm });
 }
 
-void BufferedPaintProvider::drawTiledPixmap(const RectF& rect, const QPixmap& pm, const PointF& offset)
+void BufferedPaintProvider::drawTiledPixmap(const RectF& rect, const Pixmap& pm, const PointF& offset)
 {
     editableData().tiledPixmap.push_back(DrawTiledPixmap { rect, pm, offset });
 }

@@ -38,7 +38,7 @@
 #include "internal/mscznotationreader.h"
 #include "internal/msczmetareader.h"
 #include "internal/positionswriter.h"
-#include "internal/notationmetawriter.h"
+#include "internal/instrumentsrepository.h"
 
 #include "view/notationpaintview.h"
 #include "view/notationswitchlistmodel.h"
@@ -46,7 +46,7 @@
 #include "view/searchpopupmodel.h"
 #include "view/noteinputbarmodel.h"
 #include "view/noteinputbarcustomisemodel.h"
-#include "view/internal/abstractnoteinputbaritem.h"
+#include "view/noteinputbarcustomiseitem.h"
 #include "view/internal/undoredomodel.h"
 #include "view/notationtoolbarmodel.h"
 #include "view/notationnavigator.h"
@@ -66,8 +66,10 @@
 #include "view/notationcontextmenu.h"
 #include "view/internal/undoredomodel.h"
 
+#include "diagnostics/idiagnosticspathsregister.h"
+
 using namespace mu::notation;
-using namespace mu::framework;
+using namespace mu::modularity;
 using namespace mu::ui;
 using namespace mu::actions;
 using namespace mu::uicomponents;
@@ -76,6 +78,7 @@ static std::shared_ptr<NotationConfiguration> s_configuration = std::make_shared
 static std::shared_ptr<NotationActionController> s_actionController = std::make_shared<NotationActionController>();
 static std::shared_ptr<NotationUiActions> s_notationUiActions = std::make_shared<NotationUiActions>(s_actionController);
 static std::shared_ptr<MidiInputController> s_midiInputController = std::make_shared<MidiInputController>();
+static std::shared_ptr<InstrumentsRepository> s_instrumentsRepository = std::make_shared<InstrumentsRepository>();
 
 static void notationscene_init_qrc()
 {
@@ -91,6 +94,7 @@ void NotationModule::registerExports()
 {
     ioc()->registerExport<INotationCreator>(moduleName(), new NotationCreator());
     ioc()->registerExport<INotationConfiguration>(moduleName(), s_configuration);
+    ioc()->registerExport<IInstrumentsRepository>(moduleName(), s_instrumentsRepository);
     ioc()->registerExport<IMsczMetaReader>(moduleName(), new MsczMetaReader());
     ioc()->registerExport<INotationContextMenu>(moduleName(), new NotationContextMenu());
 
@@ -100,7 +104,6 @@ void NotationModule::registerExports()
     std::shared_ptr<INotationWritersRegister> writers = std::make_shared<NotationWritersRegister>();
     writers->reg({ "sposXML" }, std::make_shared<PositionsWriter>(PositionsWriter::ElementType::SEGMENT));
     writers->reg({ "mposXML" }, std::make_shared<PositionsWriter>(PositionsWriter::ElementType::MEASURE));
-    writers->reg({ "metadata" }, std::make_shared<NotationMetaWriter>());
 
     ioc()->registerExport<INotationReadersRegister>(moduleName(), readers);
     ioc()->registerExport<INotationWritersRegister>(moduleName(), writers);
@@ -169,7 +172,7 @@ void NotationModule::registerUiTypes()
     qmlRegisterType<SearchPopupModel>("MuseScore.NotationScene", 1, 0, "SearchPopupModel");
     qmlRegisterType<NoteInputBarModel>("MuseScore.NotationScene", 1, 0, "NoteInputBarModel");
     qmlRegisterType<NoteInputBarCustomiseModel>("MuseScore.NotationScene", 1, 0, "NoteInputBarCustomiseModel");
-    qmlRegisterType<AbstractNoteInputBarItem>("MuseScore.NotationScene", 1, 0, "NoteInputBarItem");
+    qmlRegisterUncreatableType<NoteInputBarCustomiseItem>("MuseScore.NotationScene", 1, 0, "NoteInputBarCustomiseItem", "Cannot create");
     qmlRegisterType<NotationToolBarModel>("MuseScore.NotationScene", 1, 0, "NotationToolBarModel");
     qmlRegisterType<NotationNavigator>("MuseScore.NotationScene", 1, 0, "NotationNavigator");
     qmlRegisterType<UndoRedoModel>("MuseScore.NotationScene", 1, 0, "UndoRedoModel");
@@ -185,12 +188,36 @@ void NotationModule::registerUiTypes()
     }
 }
 
-void NotationModule::onInit(const IApplication::RunMode&)
+void NotationModule::onInit(const framework::IApplication::RunMode&)
 {
     s_configuration->init();
+    s_instrumentsRepository->init();
     s_actionController->init();
     s_notationUiActions->init();
     s_midiInputController->init();
 
     Notation::init();
+
+    auto pr = modularity::ioc()->resolve<diagnostics::IDiagnosticsPathsRegister>(moduleName());
+    if (pr) {
+        io::paths instrPaths = s_configuration->instrumentListPaths();
+        for (const io::path& p : instrPaths) {
+            pr->reg("instruments", p);
+        }
+
+        io::paths uinstrPaths = s_configuration->userInstrumentListPaths();
+        for (const io::path& p : uinstrPaths) {
+            pr->reg("user instruments", p);
+        }
+
+        io::paths scoreOrderPaths = s_configuration->scoreOrderListPaths();
+        for (const io::path& p : scoreOrderPaths) {
+            pr->reg("scoreOrder", p);
+        }
+
+        io::paths uscoreOrderPaths = s_configuration->userScoreOrderListPaths();
+        for (const io::path& p : uscoreOrderPaths) {
+            pr->reg("user scoreOrder", p);
+        }
+    }
 }

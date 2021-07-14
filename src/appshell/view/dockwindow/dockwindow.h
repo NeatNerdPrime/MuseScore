@@ -34,6 +34,7 @@
 #include "ui/iuiconfiguration.h"
 #include "ui/imainwindow.h"
 #include "async/asyncable.h"
+#include "internal/istartupscenario.h"
 
 namespace KDDockWidgets {
 class MainWindowBase;
@@ -43,6 +44,7 @@ class LayoutSaver;
 namespace mu::dock {
 class DockToolBar;
 class DockToolBarHolder;
+class DockPanelHolder;
 class DockPage;
 class DockBase;
 class DockWindow : public QQuickItem, public async::Asyncable
@@ -59,6 +61,7 @@ class DockWindow : public QQuickItem, public async::Asyncable
 
     INJECT(dock, ui::IUiConfiguration, configuration)
     INJECT(dock, ui::IMainWindow, mainWindow)
+    INJECT(dock, appshell::IStartupScenario, startupScenario)
 
 public:
     explicit DockWindow(QQuickItem* parent = nullptr);
@@ -70,6 +73,9 @@ public:
     DockToolBarHolder* mainToolBarDockingHolder() const;
 
     Q_INVOKABLE void loadPage(const QString& uri);
+
+    bool isDockShown(const QString& dockName) const;
+    void toggleDockVisibility(const QString& dockName);
 
 public slots:
     void setMainToolBarDockingHolder(DockToolBarHolder* mainToolBarDockingHolder);
@@ -91,6 +97,7 @@ private:
     void loadPageContent(const DockPage* page);
     void unitePanelsToTabs(const DockPage* page);
     void loadPageToolbars(const DockPage* page);
+    void loadPagePanels(const DockPage* page);
 
     void addDock(DockBase* dock, KDDockWidgets::Location location, const DockBase* relativeTo = nullptr);
 
@@ -103,13 +110,17 @@ private:
     void restorePageState(const QString& pageName);
 
     void resetWindowState();
+    bool restoreLayout(const QByteArray& layout, KDDockWidgets::RestoreOptions options = KDDockWidgets::RestoreOptions());
 
     void initDocks(DockPage* page);
 
     DockToolBarHolder* resolveToolbarDockingHolder(const QPoint& localPos) const;
-
     void hideCurrentToolBarDockingHolder();
     bool isMouseOverCurrentToolBarDockingHolder(const QPoint& mouseLocalPos) const;
+
+    DockPanelHolder* resolvePanelDockingHolder(const QPoint& localPos) const;
+    void hideCurrentPanelDockingHolder();
+    bool isMouseOverCurrentPanelDockingHolder(const QPoint& mouseLocalPos) const;
 
     KDDockWidgets::MainWindowBase* m_mainWindow = nullptr;
     QString m_currentPageUri;
@@ -117,6 +128,9 @@ private:
     DockToolBarHolder* m_mainToolBarDockingHolder = nullptr;
     uicomponents::QmlListProperty<DockPage> m_pages;
     DockToolBarHolder* m_currentToolBarDockingHolder = nullptr;
+    DockPanelHolder* m_currentPanelDockingHolder = nullptr;
+
+    bool m_quiting = false;
 };
 }
 

@@ -26,6 +26,7 @@
 #include <QTextLayout>
 #include <QTextLine>
 #include <QGlyphRun>
+#include <QPixmapCache>
 #include <QStaticText>
 
 #include "fontcompat.h"
@@ -35,10 +36,11 @@
 using namespace mu::draw;
 
 QPainterProvider::QPainterProvider(QPainter* painter, bool overship)
-    : m_painter(painter), m_overship(overship)
+    : m_painter(painter), m_overship(overship), m_drawObjectsLogger(new DrawObjectsLogger()),
+    m_font(mu::draw::fromQFont(m_painter->font())),
+    m_pen(Pen::fromQPen(m_painter->pen())),
+    m_brush(Brush::fromQBrush(m_painter->brush()))
 {
-    m_drawObjectsLogger = new DrawObjectsLogger();
-    m_font = mu::draw::fromQFont(m_painter->font());
 }
 
 QPainterProvider::~QPainterProvider()
@@ -132,29 +134,32 @@ const Font& QPainterProvider::font() const
     return m_font;
 }
 
-void QPainterProvider::setPen(const QPen& pen)
+void QPainterProvider::setPen(const Pen& pen)
 {
-    m_painter->setPen(pen);
+    m_pen = pen;
+    m_painter->setPen(Pen::toQPen(m_pen));
 }
 
 void QPainterProvider::setNoPen()
 {
-    m_painter->setPen(QPen(Qt::NoPen));
+    m_pen = Pen(PenStyle::NoPen);
+    m_painter->setPen(Pen::toQPen(m_pen));
 }
 
-const QPen& QPainterProvider::pen() const
+const Pen& QPainterProvider::pen() const
 {
-    return m_painter->pen();
+    return m_pen;
 }
 
-void QPainterProvider::setBrush(const QBrush& brush)
+void QPainterProvider::setBrush(const Brush& brush)
 {
-    m_painter->setBrush(brush);
+    m_brush = brush;
+    m_painter->setBrush(Brush::toQBrush(m_brush));
 }
 
-const QBrush& QPainterProvider::brush() const
+const Brush& QPainterProvider::brush() const
 {
-    return m_painter->brush();
+    return m_brush;
 }
 
 void QPainterProvider::save()
@@ -166,6 +171,8 @@ void QPainterProvider::restore()
 {
     m_painter->restore();
     m_font = mu::draw::fromQFont(m_painter->font());
+    m_pen = Pen::fromQPen(m_painter->pen());
+    m_brush = Brush::fromQBrush(m_painter->brush());
 }
 
 void QPainterProvider::setTransform(const QTransform& transform)
@@ -186,7 +193,7 @@ void QPainterProvider::drawPath(const QPainterPath& path)
     m_painter->drawPath(path);
 }
 
-void QPainterProvider::drawPolygon(const PointF* points, int pointCount, PolygonMode mode)
+void QPainterProvider::drawPolygon(const PointF* points, size_t pointCount, PolygonMode mode)
 {
     static_assert(sizeof(QPointF) == sizeof(PointF), "sizeof(QPointF) and sizeof(PointF) must be equal");
 
@@ -194,16 +201,16 @@ void QPainterProvider::drawPolygon(const PointF* points, int pointCount, Polygon
 
     switch (mode) {
     case PolygonMode::OddEven: {
-        m_painter->drawPolygon(qpoints, pointCount, Qt::OddEvenFill);
+        m_painter->drawPolygon(qpoints, int(pointCount), Qt::OddEvenFill);
     } break;
     case PolygonMode::Winding: {
-        m_painter->drawPolygon(qpoints, pointCount, Qt::WindingFill);
+        m_painter->drawPolygon(qpoints, int(pointCount), Qt::WindingFill);
     } break;
     case PolygonMode::Convex: {
-        m_painter->drawConvexPolygon(qpoints, pointCount);
+        m_painter->drawConvexPolygon(qpoints, int(pointCount));
     } break;
     case PolygonMode::Polyline: {
-        m_painter->drawPolyline(qpoints, pointCount);
+        m_painter->drawPolyline(qpoints, int(pointCount));
     } break;
     }
 }
@@ -289,6 +296,30 @@ void QPainterProvider::drawSymbol(const PointF& point, uint ucs4Code)
     m_painter->drawText(QPointF(point.x(), point.y()), cache[ucs4Code]);
 }
 
+void QPainterProvider::drawPixmap(const PointF& point, const Pixmap& pm)
+{
+    QString key = QString::number(pm.key());
+    QPixmap pixmap;
+    if (!QPixmapCache::find(key, &pixmap)) {
+        pixmap.loadFromData(pm.data());
+        QPixmapCache::insert(key, pixmap);
+    }
+
+    m_painter->drawPixmap(QPointF(point.x(), point.y()), pixmap);
+}
+
+void QPainterProvider::drawTiledPixmap(const RectF& rect, const Pixmap& pm, const PointF& offset)
+{
+    QString key = QString::number(pm.key());
+    QPixmap pixmap;
+    if (!QPixmapCache::find(key, &pixmap)) {
+        pixmap.loadFromData(pm.data());
+        QPixmapCache::insert(key, pixmap);
+    }
+
+    m_painter->drawTiledPixmap(rect.toQRectF(), pixmap, QPointF(offset.x(), offset.y()));
+}
+
 void QPainterProvider::drawPixmap(const PointF& point, const QPixmap& pm)
 {
     m_painter->drawPixmap(QPointF(point.x(), point.y()), pm);
@@ -297,4 +328,14 @@ void QPainterProvider::drawPixmap(const PointF& point, const QPixmap& pm)
 void QPainterProvider::drawTiledPixmap(const RectF& rect, const QPixmap& pm, const PointF& offset)
 {
     m_painter->drawTiledPixmap(rect.toQRectF(), pm, QPointF(offset.x(), offset.y()));
+}
+
+void QPainterProvider::setClipRect(const RectF& rect)
+{
+    m_painter->setClipRect(rect.toQRectF());
+}
+
+void QPainterProvider::setClipping(bool enable)
+{
+    m_painter->setClipping(enable);
 }

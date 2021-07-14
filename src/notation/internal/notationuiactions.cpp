@@ -136,16 +136,36 @@ const UiActionList NotationUiActions::m_actions = {
              QT_TRANSLATE_NOOP("action", "Up Octave"),
              QT_TRANSLATE_NOOP("action", "Pitch up by an octave or move text or articulation up")
              ),
-    UiAction("cut",
+    UiAction("double-duration",
              mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Double Duration"),
+             QT_TRANSLATE_NOOP("action", "Double duration")
+             ),
+    UiAction("half-duration",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Half Duration"),
+             QT_TRANSLATE_NOOP("action", "Half duration")
+             ),
+    UiAction("inc-duration-dotted",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Increase Duration Dotted"),
+             QT_TRANSLATE_NOOP("action", "Increase duration dotted")
+             ),
+    UiAction("dec-duration-dotted",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Decrease Duration Dotted"),
+             QT_TRANSLATE_NOOP("action", "Decrease duration dotted")
+             ),
+    UiAction("cut",
+             mu::context::UiCtxNotationFocused,
              QT_TRANSLATE_NOOP("action", "Cut")
              ),
     UiAction("copy",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxNotationFocused,
              QT_TRANSLATE_NOOP("action", "Copy")
              ),
     UiAction("paste",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxNotationFocused,
              QT_TRANSLATE_NOOP("action", "Paste")
              ),
     UiAction("paste-half",
@@ -174,7 +194,7 @@ const UiActionList NotationUiActions::m_actions = {
              QT_TRANSLATE_NOOP("action", "Toggle visibility of elements")
              ),
     UiAction("select-all",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxNotationFocused,
              QT_TRANSLATE_NOOP("action", "Select All"),
              QT_TRANSLATE_NOOP("action", "Select all")
              ),
@@ -329,13 +349,13 @@ const UiActionList NotationUiActions::m_actions = {
              QT_TRANSLATE_NOOP("action", "Edit score properties")
              ),
     UiAction("undo",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxNotationFocused,
              QT_TRANSLATE_NOOP("action", "Undo"),
              QT_TRANSLATE_NOOP("action", "Undo last change"),
              IconCode::Code::UNDO
              ),
     UiAction("redo",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxNotationFocused,
              QT_TRANSLATE_NOOP("action", "Redo"),
              QT_TRANSLATE_NOOP("action", "Redo last undo"),
              IconCode::Code::REDO
@@ -369,6 +389,21 @@ const UiActionList NotationUiActions::m_actions = {
              mu::context::UiCtxNotationOpened,
              QT_TRANSLATE_NOOP("action", "Exchange Voice 3-4"),
              QT_TRANSLATE_NOOP("action", "Exchange voice 3-4")
+             ),
+    UiAction("system-break",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Toggle System Break"),
+             QT_TRANSLATE_NOOP("action", "Toggle 'System Break'")
+             ),
+    UiAction("page-break",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Toggle Page Break"),
+             QT_TRANSLATE_NOOP("action", "Toggle 'Page Break'")
+             ),
+    UiAction("section-break",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Toggle Section Break"),
+             QT_TRANSLATE_NOOP("action", "Toggle 'Section Break'")
              ),
     UiAction("split-measure",
              mu::context::UiCtxNotationOpened,
@@ -491,8 +526,8 @@ const UiActionList NotationUiActions::m_actions = {
              ),
     UiAction("beam-64",
              mu::context::UiCtxNotationOpened,
-             QT_TRANSLATE_NOOP("action", "Beam 32th Sub"),
-             QT_TRANSLATE_NOOP("action", "Beam 32th sub"),
+             QT_TRANSLATE_NOOP("action", "Beam 32nd Sub"),
+             QT_TRANSLATE_NOOP("action", "Beam 32nd sub"),
              IconCode::Code::BEAM_64
              ),
     UiAction("auto-beam",
@@ -733,6 +768,81 @@ const UiActionList NotationUiActions::m_actions = {
              mu::context::UiCtxNotationOpened,
              QT_TRANSLATE_NOOP("action", "Eighth Rest"),
              QT_TRANSLATE_NOOP("action", "Note input: Eighth rest")
+             ),
+    UiAction("fret-0",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 0 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 0 on current string (TAB only)")
+             ),
+    UiAction("fret-1",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 1 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 1 on current string (TAB only)")
+             ),
+    UiAction("fret-2",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 2 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 2 on current string (TAB only)")
+             ),
+    UiAction("fret-3",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 3 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 3 on current string (TAB only)")
+             ),
+    UiAction("fret-4",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 4 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 4 on current string (TAB only)")
+             ),
+    UiAction("fret-5",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 5 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 5 on current string (TAB only)")
+             ),
+    UiAction("fret-6",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 6 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 6 on current string (TAB only)")
+             ),
+    UiAction("fret-7",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 7 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 7 on current string (TAB only)")
+             ),
+    UiAction("fret-8",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 8 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 8 on current string (TAB only)")
+             ),
+    UiAction("fret-9",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 9 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 9 on current string (TAB only)")
+             ),
+    UiAction("fret-10",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 10 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 10 on current string (TAB only)")
+             ),
+    UiAction("fret-11",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 11 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 11 on current string (TAB only)")
+             ),
+    UiAction("fret-12",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 12 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 12 on current string (TAB only)")
+             ),
+    UiAction("fret-13",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 13 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 13 on current string (TAB only)")
+             ),
+    UiAction("fret-14",
+             mu::context::UiCtxNotationOpened,
+             QT_TRANSLATE_NOOP("action", "Fret 14 (TAB)"),
+             QT_TRANSLATE_NOOP("action", "Add fret 14 on current string (TAB only)")
              ),
     UiAction("add-8va",
              mu::context::UiCtxNotationOpened,
@@ -1029,9 +1139,9 @@ const UiActionList NotationUiActions::m_noteInputActions = {
              ),
     UiAction("pad-note-32",
              mu::context::UiCtxNotationOpened,
-             QT_TRANSLATE_NOOP("action", "32th note"),
-             QT_TRANSLATE_NOOP("action", "Note duration: 32th note"),
-             IconCode::Code::NOTE_32TH
+             QT_TRANSLATE_NOOP("action", "32nd note"),
+             QT_TRANSLATE_NOOP("action", "Note duration: 32nd note"),
+             IconCode::Code::NOTE_32ND
              ),
     UiAction("pad-note-64",
              mu::context::UiCtxNotationOpened,
@@ -1225,8 +1335,8 @@ const UiActionList NotationUiActions::m_scoreConfigActions = {
              ),
     UiAction(SHOW_UNPRINTABLE_CODE,
              mu::context::UiCtxNotationOpened,
-             QT_TRANSLATE_NOOP("action", "Show Unprintable"),
-             QT_TRANSLATE_NOOP("action", "Show unprintable"),
+             QT_TRANSLATE_NOOP("action", "Show Formatting"),
+             QT_TRANSLATE_NOOP("action", "Show Formatting"),
              Checkable::Yes
              ),
     UiAction(SHOW_FRAMES_CODE,
@@ -1483,4 +1593,43 @@ SymbolId NotationUiActions::actionArticulationSymbolId(const ActionCode& actionC
     }
 
     return symbolId;
+}
+
+const mu::ui::ToolConfig& NotationUiActions::defaultNoteInputBarConfig()
+{
+    static ToolConfig config;
+    if (!config.isValid()) {
+        config.items = {
+            { "note-input", true },
+            { "pad-note-1", true },
+            { "pad-note-2", true },
+            { "pad-note-4", true },
+            { "pad-note-8", true },
+            { "pad-note-16", true },
+            { "pad-note-32", true },
+            { "pad-note-64", true },
+            { "", true },
+            { "pad-dot", true },
+            { "", true },
+            { "pad-rest", true },
+            { "", true },
+            { "flat", true },
+            { "nat", true },
+            { "sharp", true },
+            { "tie", true },
+            { "add-slur", true },
+            { "", true },
+            { "add-marcato", true },
+            { "add-sforzato", true },
+            { "add-tenuto", true },
+            { "add-staccato", true },
+            { "", true },
+            { "tuplet", true },
+            { "", true },
+            { "voice-1", true },
+            { "", true },
+            { "flip", true },
+        };
+    }
+    return config;
 }

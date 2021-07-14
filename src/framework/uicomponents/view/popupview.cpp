@@ -107,7 +107,7 @@ bool PopupView::eventFilter(QObject* watched, QEvent* event)
         mousePressEvent(static_cast<QMouseEvent*>(event));
     } else if (QEvent::MouseButtonRelease == event->type()) {
         mouseReleaseEvent(static_cast<QMouseEvent*>(event));
-    } else if (QEvent::Close == event->type() && watched == mainWindow()->qMainWindow()) {
+    } else if (QEvent::Close == event->type() && watched == mainWindow()->qWindow()) {
         close();
     }
 
@@ -582,7 +582,7 @@ void PopupView::updatePosition()
     if (popupRect.right() > anchorRect.right() || parentCascadeAlign != Qt::AlignmentFlag::AlignRight) {
         if (isCascade) {
             // move to the right of the parent
-            movePos(parentTopLeft.x() - popupRect.width(), m_globalPos.y());
+            movePos(parentTopLeft.x() - popupRect.width() + padding() * 2, m_globalPos.y());
             setCascadeAlign(Qt::AlignmentFlag::AlignLeft);
         } else {
             // move to the left to an area that doesn't fit

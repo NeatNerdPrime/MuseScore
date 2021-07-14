@@ -22,24 +22,28 @@
 #ifndef MU_MI_MULTIINSTANCESPROVIDER_H
 #define MU_MI_MULTIINSTANCESPROVIDER_H
 
+#include <map>
+
 #include "../imultiinstancesprovider.h"
 
-#include <functional>
-#include <QEventLoop>
-#include <QTimer>
+#include "ipc/ipcchannel.h"
+#include "ipc/ipclock.h"
 
 #include "modularity/ioc.h"
 #include "actions/iactionsdispatcher.h"
 #include "actions/actionable.h"
 #include "iinteractive.h"
 #include "async/asyncable.h"
-#include "ipc/ipcchannel.h"
+#include "userscores/ifilescorecontroller.h"
+#include "ui/imainwindow.h"
 
 namespace mu::mi {
 class MultiInstancesProvider : public IMultiInstancesProvider, public actions::Actionable, public async::Asyncable
 {
     INJECT(mi, actions::IActionsDispatcher, dispatcher)
     INJECT(mi, framework::IInteractive, interactive)
+    INJECT(mi, userscores::IFileScoreController, fileScoreController)
+    INJECT(mi, ui::IMainWindow, mainWindow)
 
 public:
     MultiInstancesProvider() = default;
@@ -47,25 +51,41 @@ public:
 
     void init();
 
+    // Score opening
     bool isScoreAlreadyOpened(const io::path& scorePath) const override;
-    void activateWindowForScore(const io::path& scorePath) override;
+    void activateWindowWithScore(const io::path& scorePath) override;
 
+    // Settings
+    bool isPreferencesAlreadyOpened() const override;
+    void activateWindowWithOpenedPreferences() const override;
+    void settingsBeginTransaction() override;
+    void settingsCommitTransaction() override;
+    void settingsRollbackTransaction() override;
+    void settingsSetValue(const std::string& key, const Val& value) override;
+
+    // Resources (files)
+    bool lockResource(const std::string& name) override;
+    bool unlockResource(const std::string& name) override;
+
+    // Instances info
     const std::string& selfID() const override;
     std::vector<InstanceMeta> instances() const override;
     async::Notification instancesChanged() const override;
 
 private:
 
+    bool isInited() const;
+
     void onMsg(const ipc::Msg& msg);
+
+    ipc::IpcLock* lock(const std::string& name);
 
     ipc::IpcChannel* m_ipcChannel = nullptr;
     std::string m_selfID;
 
-    mutable QEventLoop m_loop;
-    mutable QTimer m_timeout;
-    mutable std::function<void(const ipc::Msg& msg)> m_onMsg;
-
     async::Notification m_instancesChanged;
+
+    std::map<std::string, ipc::IpcLock*> m_locks;
 };
 }
 

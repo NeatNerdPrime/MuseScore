@@ -24,6 +24,10 @@ if (NOT BUILD_USERSCORES_MODULE)
     add_subdirectory(userscores)
 endif (NOT BUILD_USERSCORES_MODULE)
 
+if (NOT BUILD_LEARN_MODULE)
+    add_subdirectory(learn)
+endif (NOT BUILD_LEARN_MODULE)
+
 if (NOT BUILD_WORKSPACE_MODULE)
     add_subdirectory(workspace)
 endif (NOT BUILD_WORKSPACE_MODULE)
@@ -59,3 +63,7 @@ endif (NOT BUILD_INSTRUMENTS_MODULE)
 if (NOT BUILD_INSPECTOR_MODULE)
     add_subdirectory(inspector)
 endif (NOT BUILD_INSPECTOR_MODULE)
+
+if (NOT BUILD_MULTIINSTANCES_MODULE)
+    add_subdirectory(multiinstances)
+endif()

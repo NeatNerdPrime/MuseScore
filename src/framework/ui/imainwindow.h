@@ -41,8 +41,14 @@ class IMainWindow : MODULE_EXPORT_INTERFACE
 public:
     virtual ~IMainWindow() = default;
 
-    virtual QMainWindow* qMainWindow() const = 0;
     virtual QWindow* qWindow() const = 0;
+
+    virtual QWindow* topWindow() const = 0;
+    virtual void pushWindow(QWindow* w) = 0;
+    virtual void popWindow(QWindow* w) = 0;
+
+    virtual void requestShowOnBack() = 0;
+    virtual void requestShowOnFront() = 0;
 
     virtual bool isFullScreen() const = 0;
     virtual void toggleFullScreen() = 0;
@@ -53,6 +59,9 @@ public:
 
     virtual void requestShowToolBarDockingHolder(const QPoint& globalPos) = 0;
     virtual async::Channel<QPoint> showToolBarDockingHolderRequested() const = 0;
+
+    virtual void requestShowPanelDockingHolder(const QPoint& globalPos) = 0;
+    virtual async::Channel<QPoint> showPanelDockingHolderRequested() const = 0;
 
     virtual void requestHideAllDockingHolders() = 0;
     virtual async::Notification hideAllDockingHoldersRequested() const = 0;

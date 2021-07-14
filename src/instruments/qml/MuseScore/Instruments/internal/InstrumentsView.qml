@@ -37,7 +37,7 @@ Item {
 
     property alias navigation: navPanel
 
-    signal selectInstrumentRequested(var instrumentId, var transposition)
+    signal selectInstrumentRequested(var instrumentName, var traitName)
     signal instrumentClicked()
 
     NavigationPanel {
@@ -102,6 +102,10 @@ Item {
         navigation.panel: navPanel
         navigation.row: 1
 
+        onCurrentTextEdited: {
+            root.resetSelectedInstrument()
+        }
+
         onTextCleared: {
             root.resetSelectedInstrument()
         }
@@ -138,7 +142,7 @@ Item {
             StyledTextLabel {
                 anchors.left: parent.left
                 anchors.leftMargin: 12
-                anchors.right: transpositionsBox.visible ? transpositionsBox.left : parent.right
+                anchors.right: traitsBox.visible ? traitsBox.left : parent.right
                 anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
 
@@ -154,23 +158,23 @@ Item {
 
             onDoubleClicked: {
                 var currentSelection = root.currentInstrument()
-                root.selectInstrumentRequested(currentSelection.instrument.id, currentSelection.transposition)
+                root.selectInstrumentRequested(currentSelection.instrument.name, currentSelection.traitName)
             }
 
-            StyledComboBox {
-                id: transpositionsBox
+            Dropdown {
+                id: traitsBox
 
                 anchors.right: parent.right
                 anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
 
-                width: 72
-                implicitHeight: 24
+                width: 86
+                height: 24
 
-                textRoleName: "text"
-                valueRoleName: "value"
+                label.anchors.leftMargin: 8
+                dropIcon.anchors.rightMargin: 4
 
-                visible: count > 1
+                visible: traitsBox.count > 1
 
                 onFocusChanged: {
                     if (focus) {
@@ -178,33 +182,21 @@ Item {
                     }
                 }
 
-                model: {
-                    var resultList = []
+                textRole: "name"
+                valueRole: "id"
+                model: modelData.traits
 
-                    var _transpositions = modelData.transpositions
-
-                    if (!_transpositions) {
-                        return
-                    }
-
-                    for (var i = 0; i < _transpositions.length; ++i) {
-                        resultList.push({"text" : _transpositions[i].name, "value" : _transpositions[i].id})
-                    }
-
-                    return resultList
-                }
-
-                onValueChanged: {
+                onCurrentValueChanged: {
                     if (prv.currentInstrumentIndex === index) {
-                        item.resetCurrentInstrument()
+                        item.updateCurrentInstrument()
                     }
                 }
             }
 
-            function resetCurrentInstrument() {
+            function updateCurrentInstrument() {
                 prv.currentInstrument = {
                     "instrument": modelData,
-                    "transposition": transpositionsBox.value
+                    "traitName": traitsBox.currentValue
                 }
 
                 root.instrumentClicked()
@@ -214,7 +206,7 @@ Item {
                 target: prv
                 function onCurrentInstrumentIndexChanged() {
                     if (prv.currentInstrumentIndex === model.index) {
-                        item.resetCurrentInstrument()
+                        item.updateCurrentInstrument()
                     }
                 }
             }

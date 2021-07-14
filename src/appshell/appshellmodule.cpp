@@ -33,13 +33,14 @@
 #include "internal/applicationactioncontroller.h"
 #include "internal/appshellconfiguration.h"
 #include "internal/notationpagestate.h"
+#include "internal/startupscenario.h"
 
 #include "view/devtools/settingslistmodel.h"
 #include "view/appmenumodel.h"
+#include "view/mainwindowtitleprovider.h"
 #include "view/notationpagemodel.h"
 #include "view/notationstatusbarmodel.h"
 #include "view/aboutmodel.h"
-#include "view/startupmodel.h"
 #include "view/preferences/preferencesmodel.h"
 #include "view/preferences/generalpreferencesmodel.h"
 #include "view/preferences/updatepreferencesmodel.h"
@@ -60,6 +61,7 @@
 
 using namespace mu::appshell;
 using namespace mu::framework;
+using namespace mu::modularity;
 using namespace mu::ui;
 using namespace mu::dock;
 
@@ -88,6 +90,7 @@ void AppShellModule::registerExports()
 
     ioc()->registerExport<IAppShellConfiguration>(moduleName(), s_appShellConfiguration);
     ioc()->registerExport<INotationPageState>(moduleName(), s_notationPageState);
+    ioc()->registerExport<IStartupScenario>(moduleName(), new StartupScenario());
 }
 
 void AppShellModule::resolveImports()
@@ -134,10 +137,10 @@ void AppShellModule::registerUiTypes()
     qmlRegisterType<IOPreferencesModel>("MuseScore.Preferences", 1, 0, "IOPreferencesModel");
     qmlRegisterType<CommonAudioApiConfigurationModel>("MuseScore.Preferences", 1, 0, "CommonAudioApiConfigurationModel");
     qmlRegisterType<AppMenuModel>("MuseScore.AppShell", 1, 0, "AppMenuModel");
+    qmlRegisterType<MainWindowTitleProvider>("MuseScore.AppShell", 1, 0, "MainWindowTitleProvider");
     qmlRegisterType<NotationPageModel>("MuseScore.AppShell", 1, 0, "NotationPageModel");
     qmlRegisterType<NotationStatusBarModel>("MuseScore.AppShell", 1, 0, "NotationStatusBarModel");
     qmlRegisterType<AboutModel>("MuseScore.AppShell", 1, 0, "AboutModel");
-    qmlRegisterType<StartupModel>("MuseScore.AppShell", 1, 0, "StartupModel");
     qmlRegisterType<FramelessWindowModel>("MuseScore.AppShell", 1, 0, "FramelessWindowModel");
     qmlRegisterType<PublishToolBarModel>("MuseScore.AppShell", 1, 0, "PublishToolBarModel");
 }

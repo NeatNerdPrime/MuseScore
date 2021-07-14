@@ -401,7 +401,7 @@ bool LineSegment::edit(EditData& ed)
     }
 
     if (nls && (nls != this)) {
-        ed.view->changeEditElement(nls);
+        ed.view()->changeEditElement(nls);
     }
     if (ls) {
         score()->undoRemoveElement(ls);
@@ -432,7 +432,7 @@ Segment* LineSegment::findSegmentForGrip(Grip grip, PointF pos) const
     System* sys = oldSeg->system();
     const QList<System*> foundSystems = score()->searchSystem(pos, sys, spacingFactor);
 
-    if (!foundSystems.empty() && !foundSystems.contains(sys)) {
+    if (!foundSystems.empty() && !foundSystems.contains(sys) && foundSystems[0]->staves()->size()) {
         sys = foundSystems[0];
     }
 
@@ -606,7 +606,7 @@ void LineSegment::rebaseAnchors(EditData& ed, Grip grip)
                 }
 
                 // Switch to dragging the new line segment
-                ed.view->changeEditElement(newLineSegment);
+                ed.view()->changeEditElement(newLineSegment);
             }
 
             // Set offset for the new line segment for grip to appear under the mouse cursor
@@ -696,7 +696,7 @@ void LineSegment::editDrag(EditData& ed)
         //
         // if we touch a different note, change anchor
         //
-        Element* e = ed.view->elementNear(ed.pos);
+        Element* e = ed.view()->elementNear(ed.pos);
         if (e && e->isNote()) {
             SLine* l = line();
             if (ed.curGrip == Grip::END && e != line()->endElement()) {
@@ -1358,7 +1358,7 @@ bool SLine::readProperties(XmlReader& e)
     } else if (tag == "lineWidth") {
         _lineWidth = e.readDouble() * spatium();
     } else if (tag == "lineStyle") {
-        _lineStyle = Qt::PenStyle(e.readInt());
+        _lineStyle = mu::draw::PenStyle(e.readInt());
     } else if (tag == "dashLineLength") {
         _dashLineLen = e.readDouble();
     } else if (tag == "dashGapLength") {
@@ -1474,7 +1474,7 @@ bool SLine::setProperty(Pid id, const QVariant& v)
         _lineWidth = v.toReal();
         break;
     case Pid::LINE_STYLE:
-        _lineStyle = Qt::PenStyle(v.toInt());
+        _lineStyle = mu::draw::PenStyle(v.toInt());
         break;
     case Pid::DASH_LINE_LEN:
         setDashLineLen(v.toDouble());
@@ -1509,7 +1509,7 @@ QVariant SLine::propertyDefault(Pid pid) const
         if (propertyFlags(pid) != PropertyFlags::NOSTYLE) {
             return Spanner::propertyDefault(pid);
         }
-        return int(Qt::SolidLine);
+        return static_cast<int>(mu::draw::PenStyle::SolidLine);
     case Pid::DASH_LINE_LEN:
     case Pid::DASH_GAP_LEN:
         if (propertyFlags(pid) != PropertyFlags::NOSTYLE) {
