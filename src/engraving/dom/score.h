@@ -1021,6 +1021,9 @@ public:
     void makeIntoSystem(MeasureBase* first, MeasureBase* last);
     void removeSystemLocksOnAddLayoutBreak(LayoutBreakType breakType, const MeasureBase* measure);
     void removeLayoutBreaksOnAddSystemLock(const SystemLock* lock);
+    void removeSystemLocksOnRemoveMeasures(const MeasureBase* m1, const MeasureBase* m2);
+    void updateSystemLocksOnDisableMMRests();
+    void updateSystemLocksOnCreateMMRests(Measure* first, Measure* last);
 
     friend class Chord;
 
@@ -1072,6 +1075,7 @@ private:
     void selectRange(EngravingItem* e, staff_idx_t staffIdx);
 
     muse::Ret putNote(const Position&, bool replace);
+    void handleOverlappingChordRest(InputState& inputState);
 
     void resetTempo();
     void resetTempoRange(const Fraction& tick1, const Fraction& tick2);

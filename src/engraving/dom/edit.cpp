@@ -707,20 +707,9 @@ TextBase* Score::addText(TextStyleType type, EngravingItem* destinationElement)
         if (destinationElement && destinationElement->isVBox()) {
             frame = toMeasureBase(destinationElement);
         } else {
-            MeasureBase* linkedFrame = nullptr;
-            for (Score* score : scoreList()) {
-                MeasureBase* titleFrame = score->first();
-                if (!titleFrame || !titleFrame->isVBox()) {
-                    titleFrame = score->insertBox(ElementType::VBOX, titleFrame);
-                }
-                if (!linkedFrame) {
-                    linkedFrame = titleFrame;
-                } else {
-                    score->undo(new Link(titleFrame, linkedFrame));
-                }
-                if (score == this->score()) {
-                    frame = titleFrame;
-                }
+            frame = first();
+            if (!frame || !frame->isBox()) {
+                frame = insertBox(ElementType::VBOX, frame);
             }
         }
 
@@ -1201,18 +1190,21 @@ bool Score::rewriteMeasures(Measure* fm, const Fraction& ns, staff_idx_t staffId
     Measure* nm  = nullptr;
     LayoutBreak* sectionBreak = nullptr;
 
-    // disable local time sig modifications in linked staves
-    if (staffIdx != muse::nidx && masterScore()->excerpts().size() > 0) {
-        MScore::setError(MsError::CANNOT_CHANGE_LOCAL_TIMESIG_HAS_EXCERPTS);
-        return false;
-    }
-
     //
     // split into Measure segments fm-lm
     //
+    auto foundLM = [fm, staffIdx](MeasureBase* curMeas, Measure* curLM) {
+        if (!curMeas || !curMeas->isMeasure() || curLM->sectionBreak()) {
+            return true;
+        }
+        Segment* timeSigSeg = toMeasure(curMeas)->first(SegmentType::TimeSig);
+        if (timeSigSeg && curMeas != fm) {
+            return staffIdx == muse::nidx || timeSigSeg->element(staff2track(staffIdx));
+        }
+        return false;
+    };
     for (MeasureBase* measure = fm;; measure = measure->next()) {
-        if (!measure || !measure->isMeasure() || lm->sectionBreak()
-            || (toMeasure(measure)->first(SegmentType::TimeSig) && measure != fm)) {
+        if (foundLM(measure, lm)) {
             // save section break to reinstate after rewrite
             LayoutBreak* layoutBreak = lm->sectionBreakElement();
 
@@ -1317,6 +1309,9 @@ bool Score::rewriteMeasures(Measure* fm, const Fraction& ns, staff_idx_t staffId
     }
     Segment* s = nm->undoGetSegment(SegmentType::TimeSig, nm->tick());
     for (size_t i = 0; i < nstaves(); ++i) {
+        if (staffIdx != muse::nidx && i != staffIdx) {
+            continue;
+        }
         if (!s->element(i * VOICES)) {
             TimeSig* ots = staff(i)->timeSig(nm->tick());
             if (ots) {
@@ -1376,10 +1371,15 @@ void Score::cmdAddTimeSig(Measure* fm, staff_idx_t staffIdx, TimeSig* ts, bool l
                 startStaffIdx = staffIdx;
                 endStaffIdx = startStaffIdx + 1;
             } else {
-                // TODO: get index for this score
-                LOGD("cmdAddTimeSig: unable to write local time signature change to linked score");
-                startStaffIdx = 0;
-                endStaffIdx = 0;
+                const Staff* thisStaff = staff(staffIdx);
+                const Staff* linkedStaff = thisStaff->findLinkedInScore(score);
+                if (linkedStaff) {
+                    startStaffIdx = linkedStaff->idx();
+                    endStaffIdx = startStaffIdx + 1;
+                } else {
+                    startStaffIdx = 0;
+                    endStaffIdx = 0;
+                }
             }
         } else {
             startStaffIdx = 0;
@@ -1455,7 +1455,9 @@ void Score::cmdAddTimeSig(Measure* fm, staff_idx_t staffIdx, TimeSig* ts, bool l
         // we will only add time signatures if this succeeds
         // this means, however, that the rewrite cannot depend on the time signatures being in place
         if (mf) {
-            if (!mScore->rewriteMeasures(mf, ns, local ? staffIdx : muse::nidx)) {
+            auto staffIdxRangeOnMaster = getStaffIdxRange(mScore);
+            if (staffIdxRangeOnMaster.second != staffIdxRangeOnMaster.first
+                && !mScore->rewriteMeasures(mf, ns, local ? staffIdxRangeOnMaster.first : muse::nidx)) {
                 undoStack()->activeCommand()->unwind();
                 return;
             }
@@ -1514,11 +1516,6 @@ void Score::cmdAddTimeSig(Measure* fm, staff_idx_t staffIdx, TimeSig* ts, bool l
 
 void Score::cmdRemoveTimeSig(TimeSig* ts)
 {
-    if (ts->isLocal() && masterScore()->excerpts().size() > 0) {
-        MScore::setError(MsError::CANNOT_CHANGE_LOCAL_TIMESIG_HAS_EXCERPTS);
-        return;
-    }
-
     Measure* m = ts->measure();
     Segment* s = ts->segment();
 
@@ -1900,6 +1897,9 @@ static Tie* createAndAddTie(Note* startNote, Note* endNote)
     tie->setTrack(startNote->track());
     tie->setTick(startNote->chord()->segment()->tick());
     if (endNote) {
+        if (endNote->tieBack()) {
+            score->undoRemoveElement(endNote->tieBack());
+        }
         tie->setEndNote(endNote);
         tie->setTicks(endNote->chord()->segment()->tick() - startNote->chord()->segment()->tick());
     }
@@ -6625,6 +6625,104 @@ void Score::removeLayoutBreaksOnAddSystemLock(const SystemLock* lock)
     }
 }
 
+void Score::removeSystemLocksOnRemoveMeasures(const MeasureBase* m1, const MeasureBase* m2)
+{
+    std::vector<const SystemLock*> allSysLocks = systemLocks()->allLocks();
+    for (const SystemLock* lock : allSysLocks) {
+        MeasureBase* lockStart = lock->startMB();
+        MeasureBase* lockEnd = lock->endMB();
+        bool lockStartIsInRange = lockStart->isAfterOrEqual(m1) && lockStart->isBeforeOrEqual(m2);
+        bool lockEndIsInRange = lockEnd->isAfterOrEqual(m1) && lockEnd->isBeforeOrEqual(m2);
+        if (lockStartIsInRange || lockEndIsInRange) {
+            undoRemoveSystemLock(lock);
+        }
+        if (lockStartIsInRange && !lockEndIsInRange) {
+            MeasureBase* newLockStart = m2->nextMeasure();
+            if (newLockStart) {
+                undoAddSystemLock(new SystemLock(newLockStart, lockEnd));
+            }
+        } else if (!lockStartIsInRange && lockEndIsInRange) {
+            MeasureBase* newLockEnd = m1->prevMeasure();
+            if (newLockEnd) {
+                undoAddSystemLock(new SystemLock(lockStart, newLockEnd));
+            }
+        }
+    }
+}
+
+void Score::updateSystemLocksOnDisableMMRests()
+{
+    // NOTE: this can be done before layout for the full score
+    // because we already know where the mmRests are.
+
+    assert(!style().styleB(Sid::createMultiMeasureRests));
+
+    std::vector<const SystemLock*> allLocks = m_systemLocks.allLocks();
+    for (const SystemLock* lock : allLocks) {
+        MeasureBase* startMB = lock->startMB();
+        MeasureBase* endMB = lock->endMB();
+        bool startIsMMRest = startMB->isMeasure() && toMeasure(startMB)->isMMRest();
+        bool endIsMMRest = endMB->isMeasure() && toMeasure(endMB)->isMMRest();
+        if (startIsMMRest || endIsMMRest) {
+            undoRemoveSystemLock(lock);
+            MeasureBase* newStartMeas = startMB;
+            MeasureBase* newEndMeas = endMB;
+            if (startIsMMRest) {
+                newStartMeas = toMeasure(startMB)->mmRestFirst();
+            }
+            if (endIsMMRest) {
+                newEndMeas = toMeasure(endMB)->mmRestLast();
+            }
+            undoAddSystemLock(new SystemLock(newStartMeas, newEndMeas));
+        }
+    }
+}
+
+void Score::updateSystemLocksOnCreateMMRests(Measure* first, Measure* last)
+{
+    // NOTE: this must be done during layout as the mmRests get created.
+
+    for (const SystemLock* lock : systemLocks()->locksContainedInRange(first, last)) {
+        // These locks are inside the range of the mmRest so remove them
+        undoRemoveSystemLock(lock);
+    }
+
+    const SystemLock* lockOnFirst = systemLocks()->lockContaining(first);
+    const SystemLock* lockOnLast = systemLocks()->lockContaining(last);
+
+    if (lockOnFirst) {
+        MeasureBase* startMB = lockOnFirst->startMB();
+        MeasureBase* endMB = lockOnFirst->endMB();
+
+        if (startMB->isBefore(first)) {
+            if (endMB->isBeforeOrEqual(last)) {
+                endMB = first->mmRest();
+            } else {
+                return;
+            }
+        } else {
+            startMB = first->mmRest();
+        }
+
+        if (startMB != lockOnFirst->startMB() || endMB != lockOnFirst->endMB()) {
+            undoRemoveSystemLock(lockOnFirst);
+            undoAddSystemLock(new SystemLock(startMB, endMB));
+        }
+    }
+
+    if (!lockOnLast || lockOnLast == lockOnFirst) {
+        return;
+    }
+
+    MeasureBase* startMB = lockOnLast->startMB();
+    MeasureBase* endMB = lockOnLast->endMB();
+    assert(startMB->isAfter(first) && endMB->isAfter(last));
+
+    undoRemoveSystemLock(lockOnLast);
+    startMB = last->nextMM();
+    undoAddSystemLock(new SystemLock(startMB, endMB));
+}
+
 //---------------------------------------------------------
 //   undoAddCR
 //---------------------------------------------------------
@@ -7117,6 +7215,8 @@ void Score::undoRemoveMeasures(Measure* m1, Measure* m2, bool preserveTies, bool
             }
         }
     }
+
+    removeSystemLocksOnRemoveMeasures(m1, m2);
 
     undo(new RemoveMeasures(m1, m2, moveStaffTypeChanges));
 }

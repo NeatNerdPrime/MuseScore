@@ -1970,6 +1970,21 @@ bool Measure::isFinalMeasureOfSection() const
     return false;
 }
 
+LayoutBreak* Measure::sectionBreakElement(bool includeNextFrames)
+{
+    const MeasureBase* mb = static_cast<const MeasureBase*>(this);
+
+    do {
+        if (LayoutBreak* sectionBreak = mb->sectionBreakElement()) {
+            return sectionBreak;
+        }
+
+        mb = mb->next();
+    } while (includeNextFrames && mb && !mb->isMeasure());           // loop until reach next actual measure or end of score
+
+    return nullptr;
+}
+
 //---------------------------------------------------------
 //   isAnacrusis
 //---------------------------------------------------------
@@ -3193,7 +3208,7 @@ double Measure::firstNoteRestSegmentX(bool leading) const
 
             // first CR found; back up to previous segment
             seg = seg->prevActive();
-            while (seg && seg->allElementsInvisible()) {
+            while (seg && (seg->allElementsInvisible() || seg->hasTimeSigAboveStaves())) {
                 seg = seg->prevActive();
             }
             if (seg) {
