@@ -345,7 +345,15 @@ public:
     void cmdAddOttava(OttavaType);
     std::vector<Hairpin*> addHairpins(HairpinType);
     void addNoteLine();
-    void padToggle(Pad p, const EditData& ed);
+    void padToggle(Pad p, bool toggleForSelectionOnly = false);
+
+    struct NoteInputParams {
+        int step = 0;
+        int drumPitch = 0;
+    };
+
+    bool resolveNoteInputParams(int noteIdx, bool addFlag, NoteInputParams& out) const;
+
     void cmdAddPitch(const EditData&, int note, bool addFlag, bool insert);
     void cmdAddStretch(double);
     void cmdAddGrace(NoteType, int);
@@ -380,8 +388,8 @@ public:
     ChordRest* prevMeasure(ChordRest* element, bool mmRest = false);
     ChordRest* upStaff(ChordRest* cr);
     ChordRest* downStaff(ChordRest* cr);
-    void cmdPadNoteIncreaseTAB(const EditData& ed);
-    void cmdPadNoteDecreaseTAB(const EditData& ed);
+    void cmdPadNoteIncreaseTAB();
+    void cmdPadNoteDecreaseTAB();
     void cmdToggleMmrest();
     void cmdToggleHideEmpty();
     void cmdSetVisible();
@@ -493,7 +501,7 @@ public:
     void toggleArticulation(SymId);
     bool toggleArticulation(EngravingItem*, Articulation* atr);
     void toggleOrnament(SymId);
-    void toggleAccidental(AccidentalType, const EditData& ed);
+    void toggleAccidental(AccidentalType);
     void changeAccidental(AccidentalType);
     void changeAccidental(Note* oNote, AccidentalType);
 
@@ -503,7 +511,15 @@ public:
     void doUndoRemoveElement(EngravingItem*);
     bool containsElement(const EngravingItem*) const;
 
-    Note* addPitch(NoteVal&, bool addFlag, InputState* externalInputState = nullptr);
+    enum class AddToChord {
+        None,
+        AtPreviousPosition,
+        AtCurrentPosition,
+    };
+
+    Note* addPitch(NoteVal&, bool addToPreviousChord, InputState* externalInputState = nullptr);
+    Note* addPitch(NoteVal&, AddToChord addFlag = AddToChord::None, InputState* externalInputState = nullptr);
+
     Note* addTiedMidiPitch(int pitch, bool addFlag, Chord* prevChord, bool allowTransposition);
     NoteVal noteVal(int pitch, bool allowTransposition) const;
     Note* addMidiPitch(int pitch, bool addFlag, bool allowTransposition);
@@ -693,12 +709,7 @@ public:
     void setLoopBoundaryTick(LoopBoundaryType type, Fraction tick);
 
     bool noteEntryMode() const { return inputState().noteEntryMode(); }
-    void setNoteEntryMode(bool val) { inputState().setNoteEntryMode(val); }
-    NoteEntryMethod noteEntryMethod() const { return inputState().noteEntryMethod(); }
-    void setNoteEntryMethod(NoteEntryMethod m) { inputState().setNoteEntryMethod(m); }
     bool usingNoteEntryMethod(NoteEntryMethod m) { return inputState().usingNoteEntryMethod(m); }
-    Fraction inputPos() const;
-    track_idx_t inputTrack() const { return inputState().track(); }
     const InputState& inputState() const { return m_is; }
     InputState& inputState() { return m_is; }
     void setInputState(const InputState& st) { m_is = st; }
@@ -1021,6 +1032,9 @@ public:
     void makeIntoSystem(MeasureBase* first, MeasureBase* last);
     void removeSystemLocksOnAddLayoutBreak(LayoutBreakType breakType, const MeasureBase* measure);
     void removeLayoutBreaksOnAddSystemLock(const SystemLock* lock);
+    void removeSystemLocksOnRemoveMeasures(const MeasureBase* m1, const MeasureBase* m2);
+    void updateSystemLocksOnDisableMMRests();
+    void updateSystemLocksOnCreateMMRests(Measure* first, Measure* last);
 
     friend class Chord;
 
@@ -1072,6 +1086,7 @@ private:
     void selectRange(EngravingItem* e, staff_idx_t staffIdx);
 
     muse::Ret putNote(const Position&, bool replace);
+    void handleOverlappingChordRest(InputState& inputState);
 
     void resetTempo();
     void resetTempoRange(const Fraction& tick1, const Fraction& tick2);
@@ -1099,6 +1114,8 @@ private:
     void assignIdIfNeed(Part& part) const;
 
     void updateStavesNumberForSystems();
+
+    void applyAccidentalToInputNotes();
 
     int m_linkId = 0;
     MasterScore* m_masterScore = nullptr;

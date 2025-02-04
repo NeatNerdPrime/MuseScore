@@ -460,6 +460,7 @@ MenuItem* AppMenuModel::makeDiagnosticsMenu()
             makeMenuItem("color-segment-shapes"),
             makeMenuItem("show-skylines"),
             makeMenuItem("show-system-bounding-rects"),
+            makeMenuItem("show-element-masks"),
             makeMenuItem("show-corrupted-measures")
         };
 
@@ -471,11 +472,17 @@ MenuItem* AppMenuModel::makeDiagnosticsMenu()
             makeMenuItem("autobot-show-scripts"),
         };
 
+        MenuItemList vstItems {
+            makeMenuItem("vst-use-oldview"),
+            makeMenuItem("vst-use-newview"),
+        };
+
         items << makeMenu(TranslatableString("appshell/menu/diagnostics", "A&ctions"), actionsItems, "menu-actions")
               << makeMenu(TranslatableString("appshell/menu/diagnostics", "&Accessibility"), accessibilityItems, "menu-accessibility")
               << makeMenu(TranslatableString("appshell/menu/diagnostics", "&Engraving"), engravingItems, "menu-engraving")
               << makeMenu(TranslatableString("appshell/menu/diagnostics", "E&xtensions"), extensionsItems, "menu-extensions")
               << makeMenu(TranslatableString("appshell/menu/diagnostics", "Auto&bot"), autobotItems, "menu-autobot")
+              << makeMenu(TranslatableString("appshell/menu/diagnostics", "&Vst"), vstItems, "menu-vst")
               << makeMenuItem("multiinstances-dev-show-info");
     }
 

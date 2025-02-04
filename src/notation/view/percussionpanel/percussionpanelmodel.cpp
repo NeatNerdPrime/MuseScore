@@ -175,10 +175,11 @@ void PercussionPanelModel::handleMenuItem(const QString& itemId)
 
 void PercussionPanelModel::finishEditing(bool discardChanges)
 {
+    setCurrentPanelMode(m_panelModeToRestore);
+
     if (!interaction()) {
         //! NOTE: Can happen if we close the project while editing the layout...
-        m_padListModel->setDrumset(nullptr);
-        setCurrentPanelMode(m_panelModeToRestore);
+        setDrumset(nullptr);
         return;
     }
 
@@ -189,8 +190,7 @@ void PercussionPanelModel::finishEditing(bool discardChanges)
     Part* part = instAndPart.second;
 
     if (discardChanges) {
-        m_padListModel->setDrumset(inst ? inst->drumset() : nullptr);
-        setCurrentPanelMode(m_panelModeToRestore);
+        setDrumset(inst ? inst->drumset() : nullptr);
         return;
     }
 
@@ -231,7 +231,6 @@ void PercussionPanelModel::finishEditing(bool discardChanges)
     score()->undo(new engraving::ChangeDrumset(inst, updatedDrumset, part));
     undoStack->commitChanges();
 
-    setCurrentPanelMode(m_panelModeToRestore);
     m_padListModel->focusLastActivePad();
 }
 
@@ -249,9 +248,10 @@ void PercussionPanelModel::setUpConnections()
 
         if (m_currentPanelMode == PanelMode::Mode::EDIT_LAYOUT) {
             finishEditing(/*discardChanges*/ true);
+        } else {
+            setDrumset(drumset);
         }
 
-        m_padListModel->setDrumset(drumset);
         updateSoundTitle(currentTrackId());
     };
 
@@ -261,7 +261,7 @@ void PercussionPanelModel::setUpConnections()
     }
 
     const INotationNoteInputPtr noteInput = interaction()->noteInput();
-    updatePadModels(noteInput->state().drumset);
+    updatePadModels(noteInput->state().drumset());
     setEnabled(m_padListModel->hasActivePads());
 
     noteInput->stateChanged().onNotify(this, [this, updatePadModels]() {
@@ -270,7 +270,7 @@ void PercussionPanelModel::setUpConnections()
             return;
         }
         const INotationNoteInputPtr ni = interaction()->noteInput();
-        updatePadModels(ni->state().drumset);
+        updatePadModels(ni->state().drumset());
     });
 
     m_padListModel->hasActivePadsChanged().onNotify(this, [this]() {
@@ -306,6 +306,25 @@ void PercussionPanelModel::setUpConnections()
         }
         updateSoundTitle(trackId);
     });
+}
+
+void PercussionPanelModel::setDrumset(engraving::Drumset* drumset)
+{
+    m_padListModel->setDrumset(drumset);
+
+    // If drumset contained drums with undefined values for panelRow/panelColumn, m_padListModel will have
+    // assigned them now (see PercussionPanelPadListModel::load). In this case, we should update the score's
+    // drumset so that it matches the one in the panel...
+
+    const std::pair<Instrument*, Part*> instAndPart = getCurrentInstrumentAndPart();
+    Instrument* inst = instAndPart.first;
+
+    const Drumset* instDrumset = inst ? inst->drumset() : nullptr;
+    const Drumset* panelDrumset = m_padListModel->drumset();
+
+    if (instDrumset && panelDrumset && *instDrumset != *panelDrumset) {
+        inst->setDrumset(panelDrumset);
+    }
 }
 
 void PercussionPanelModel::updateSoundTitle(const InstrumentTrackId& trackId)
@@ -422,7 +441,7 @@ void PercussionPanelModel::writePitch(int pitch)
 
     undoStack->prepareChanges(muse::TranslatableString("undoableAction", "Enter percussion note"));
 
-    interaction()->noteInput()->startNoteInput(/*focusNotation*/ false);
+    interaction()->noteInput()->startNoteInput(configuration()->defaultNoteInputMethod(), /*focusNotation*/ false);
 
     score()->addMidiPitch(pitch, false, /*transpose*/ false);
     undoStack->commitChanges();
@@ -439,11 +458,11 @@ void PercussionPanelModel::playPitch(int pitch)
         return;
     }
 
-    const NoteInputState inputState = interaction()->noteInput()->state();
+    const NoteInputState& inputState = interaction()->noteInput()->state();
     std::shared_ptr<Chord> chord = PercussionUtilities::getDrumNoteForPreview(m_padListModel->drumset(), pitch);
 
-    chord->setParent(inputState.segment);
-    chord->setTrack(inputState.currentTrack);
+    chord->setParent(inputState.segment());
+    chord->setTrack(inputState.track());
 
     playbackController()->playElements({ chord.get() });
 }
@@ -488,14 +507,14 @@ InstrumentTrackId PercussionPanelModel::currentTrackId() const
         return InstrumentTrackId();
     }
 
-    const NoteInputState inputState = interaction()->noteInput()->state();
-    const Staff* staff = inputState.staff;
+    const NoteInputState& inputState = interaction()->noteInput()->state();
+    const Staff* staff = inputState.staff();
 
-    if (!staff || !staff->part() || !inputState.segment) {
+    if (!staff || !staff->part() || !inputState.segment()) {
         return InstrumentTrackId();
     }
 
-    return { staff->part()->id(), staff->part()->instrumentId(inputState.segment->tick()) };
+    return { staff->part()->id(), staff->part()->instrumentId(inputState.segment()->tick()) };
 }
 
 std::pair<mu::engraving::Instrument*, mu::engraving::Part*> PercussionPanelModel::getCurrentInstrumentAndPart() const
@@ -504,13 +523,17 @@ std::pair<mu::engraving::Instrument*, mu::engraving::Part*> PercussionPanelModel
         return { nullptr, nullptr };
     }
 
-    NoteInputState inputState = interaction()->noteInput()->state();
+    const NoteInputState& inputState = interaction()->noteInput()->state();
 
-    const Staff* staff = inputState.staff;
+    const Staff* staff = inputState.staff();
 
     Part* part = staff ? staff->part() : nullptr;
 
-    Instrument* inst = part ? part->instrument(inputState.segment->tick()) : nullptr;
+    if (!inputState.segment()) {
+        return { nullptr, part };
+    }
+
+    Instrument* inst = part ? part->instrument(inputState.segment()->tick()) : nullptr;
 
     return { inst, part };
 }
